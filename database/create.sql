@@ -1,5 +1,6 @@
 create database roadworks_tracker;
 \c roadworks_tracker;
+
 CREATE TABLE role (
   id            BIGSERIAL PRIMARY KEY,
   label         VARCHAR(50) NOT NULL UNIQUE
