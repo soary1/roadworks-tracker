@@ -2,9 +2,6 @@ import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
 import TabsPage from '../views/TabsPage.vue'
 
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/firebase';
-
 const routes: Array<RouteRecordRaw> = [
   { path: '/', redirect: '/tabs/tab1' },
   
@@ -26,18 +23,5 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
-
-// Navigation guard
-router.beforeEach((to, from, next) => {
-  onAuthStateChanged(auth, (user) => {
-    if (!user && to.path !== '/auth/login') {
-      next('/auth/login');
-    } else if (user && to.path === '/auth/login') {
-      next('/');
-    } else {
-      next();
-    }
-  });
-});
 
 export default router

@@ -62,12 +62,12 @@
     <!-- Sign in button -->
     <ion-button 
       expand="block" 
-      @click="signIn" 
+      @click="handleSignIn" 
       :disabled="isSignInButtonDisabled">
 
       <ion-text v-if="!awaitSignIn">Se Connecter</ion-text>
   
-      <ion-spinner v-else name="crescent"></ion-spinner>
+      <ion-spinner v-else name="lines"></ion-spinner>
   
       <ion-icon v-if="!awaitSignIn" :icon="logInOutline" slot="end"></ion-icon>
 
@@ -85,7 +85,7 @@ import {
   IonHeader, IonContent, 
   IonToolbar, IonTitle, IonText,
   IonItem, IonInput, IonButton, IonIcon,
-  isPlatform, IonSpinner, 
+  IonSpinner, 
   IonCard, IonCardTitle, IonCardContent, IonCardHeader
 } from '@ionic/vue';
 import { logInOutline, alertCircleOutline } from 'ionicons/icons';
@@ -93,9 +93,10 @@ import { logInOutline, alertCircleOutline } from 'ionicons/icons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 
-import { auth } from '@/firebase';
-import { setupPush } from '@/services/push.notification.service';
-import { showToast } from '@/utils';
+import { auth } from '@/services/firebase';
+import { setupPush } from '@/services/notifications';
+import { showToast } from '@/services/utils/ui';
+import router from '@/router';
 
 // Input
 const email = ref<string>('');
@@ -127,19 +128,16 @@ const clearErrors = () => {
   errors.value.displayErrorCard = false;
 };
 
-// Action
-const signIn = async () => {
+
+const handleSignIn = async () => {
   clearErrors();
   awaitSignIn.value = true;
   try {
     await signInWithEmailAndPassword(auth, email.value, password.value);
-    
-    if (isPlatform('hybrid')) {
-      await setupPush();
-    }
-
+    await setupPush();
     email.value = '';
     password.value = '';
+    router.push('/');
   } catch (error) {
     if (error instanceof FirebaseError) {
       switch (error.code) {
@@ -174,4 +172,5 @@ const signIn = async () => {
     awaitSignIn.value = false;
   }
 }
+
 </script>
