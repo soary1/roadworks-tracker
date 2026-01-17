@@ -1,0 +1,20 @@
+version: '3.9'
+
+services:
+  ionic-app:
+    build: .
+    container_name: ionic
+    ports:
+      - "8100:8100"      
+      - "35729:35729"    
+    volumes:
+      - .:/usr/src/app   
+      - node_modules_cache:/usr/src/app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+    stdin_open: true
+    tty: true
+
+volumes:
+  node_modules_cache:

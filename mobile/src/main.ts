@@ -34,10 +34,22 @@ import '@ionic/vue/css/palettes/dark.system.css';
 /* Theme variables */
 import './theme/variables.css';
 
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
+
 const app = createApp(App)
   .use(IonicVue)
   .use(router);
 
 router.isReady().then(() => {
   app.mount('#app');
+});
+
+// Firebase global Auth observator
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    router.push('/');
+  } else {
+    router.push('/auth/login')
+  }
 });
