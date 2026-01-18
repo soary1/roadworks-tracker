@@ -20,7 +20,7 @@
     </ion-text>
     
     <!-- Email -->
-    <ion-item class="ion-margin-bottom">
+    <ion-item class="ion-margin-bottom" lines="none">
       <ion-input 
         type="email" 
         label="Email *"
@@ -32,7 +32,7 @@
     </ion-item>
 
     <!-- Pwd -->
-    <ion-item class="ion-margin-bottom">
+    <ion-item class="ion-margin-bottom" lines="none">
       <ion-input 
         type="password"
         label="Mot de passe *"
@@ -66,7 +66,7 @@
       :disabled="isSignInButtonDisabled">
 
       <ion-text v-if="!awaitSignIn">Se Connecter</ion-text>
-      <ion-spinner v-else name="lines"></ion-spinner>  
+      <ion-spinner v-else name="crescent"></ion-spinner>  
       <ion-icon v-if="!awaitSignIn" :icon="logInOutline" slot="end"></ion-icon>
 
     </ion-button>
@@ -79,13 +79,13 @@
 import { computed, ref } from 'vue';
 
 import { 
-  IonPage, 
-  IonHeader, IonContent, 
+  IonPage, IonHeader, IonContent, 
   IonToolbar, IonTitle, IonText,
-  IonItem, IonInput, IonButton, IonIcon,
-  IonSpinner, 
-  IonCard, IonCardTitle, IonCardContent, IonCardHeader
+  IonItem, IonInput, IonButton, 
+  IonIcon, IonSpinner, IonCard, 
+  IonCardTitle, IonCardContent, IonCardHeader
 } from '@ionic/vue';
+
 import { logInOutline, alertCircleOutline, cloudOfflineOutline } from 'ionicons/icons';
 
 import router from '@/router';

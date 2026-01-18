@@ -9,14 +9,48 @@
 
     <ion-content :fullscreen="true">
       <div id="map" style="height: 100%; width: 100%;"></div>
+
+      <report-modal></report-modal>
+
+      <ion-fab slot="fixed" vertical="bottom" horizontal="end">
+        <ion-fab-button>
+          <ion-icon :icon="chevronUpOutline"></ion-icon>        
+        </ion-fab-button>
+
+        <ion-fab-list side="top">
+
+          <ion-fab-button color="danger">
+            <ion-icon 
+              id="open-report-modal"
+              :icon="flagOutline">
+            </ion-icon>
+          </ion-fab-button>
+
+          <ion-fab-button>
+            <ion-icon :icon="locateOutline"></ion-icon>
+          </ion-fab-button>
+
+        </ion-fab-list>
+      </ion-fab>
     </ion-content>
+
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
 
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, isPlatform } from '@ionic/vue';
+import { 
+  IonPage, IonHeader, IonToolbar, 
+  IonTitle, IonContent, isPlatform,
+  IonFab, IonFabButton, IonFabList, 
+  IonIcon
+} from '@ionic/vue';
+
+import ReportModal from '@/components/ReportModal.vue';
+
+import { chevronUpOutline, locateOutline, flagOutline } from 'ionicons/icons';
+
 import { Geolocation } from '@capacitor/geolocation';
 import L from 'leaflet';
 
@@ -56,7 +90,10 @@ const initMap = async () => {
 
     L.marker([latitude, longitude])
       .addTo(map)
-      .bindPopup('Votre position')
+      .bindPopup('Votre position', {
+        closeButton: false, 
+        closeOnClick: false
+      })
       .openPopup();
     
   } catch (error) {
