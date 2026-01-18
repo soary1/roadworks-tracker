@@ -10,6 +10,14 @@ npm install @capacitor/preferences
 npm install capacitor-secure-storage
 ```
 
+Geo localisation
+
+```bash
+npm install @capacitor/geolocation
+npm install leaflet
+npm install --save-dev @types/leaflet
+```
+
 ## Lancer l'image docker
 
 ```bash

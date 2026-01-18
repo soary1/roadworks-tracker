@@ -94,7 +94,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 
 import { auth } from '@/services/firebase/routeworks.tracker';
-import { showToast } from '@/services/utils/ui';
+import { showToast } from '@/services/ui';
 import { useConfigStore } from '@/stores/routeworks.tracker';
 import { setSessionExpirationDate } from '@/services/session/preference';
 
@@ -138,6 +138,7 @@ const handleSignIn = async () => {
     
     email.value = '';
     password.value = '';
+
     router.push('/');
   } catch (error) {
     if (error instanceof FirebaseError) {

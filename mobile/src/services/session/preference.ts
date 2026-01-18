@@ -1,9 +1,9 @@
 import { Preferences } from "@capacitor/preferences";
 
-let expirationCache: number | null = null;
+let sessionExpirationDateCache: number | null = null;
 
 const setSessionExpirationDate = async (expiresAt: number) => {
-  expirationCache = expiresAt;
+  sessionExpirationDateCache = expiresAt;
 
   await Preferences.set({
     key: 'session_expiration_date',
@@ -12,26 +12,39 @@ const setSessionExpirationDate = async (expiresAt: number) => {
 };
 
 const getSessionExpirationDate = async (): Promise<number> => {
-  if (expirationCache !== null) {
-    return expirationCache;
+  const now = Date.now();
+
+  if (sessionExpirationDateCache !== null) {
+    return sessionExpirationDateCache;
   }
   
   const { value } = await Preferences.get({ key: 'session_expiration_date' });
   const expiration = Number(value);
 
   if (!value || isNaN(expiration)) {
-    expirationCache = Date.now();
+    sessionExpirationDateCache = now;
   } else {
-    expirationCache = expiration;
+    sessionExpirationDateCache = expiration;
   }
 
-  return expirationCache;
+  return sessionExpirationDateCache;
 }
 
 const isSessionExpired = async (): Promise<boolean> => {
+  const now = Date.now();
   const expiration = await getSessionExpirationDate();
-  return Date.now() >= expiration;
+  return now >= expiration;
 }
 
-// Tout est stocke en claire il y a peut etre des problemes securite liees a cette facon de faire
-export { setSessionExpirationDate, getSessionExpirationDate, isSessionExpired };
+const expireSession = async () => {
+  sessionExpirationDateCache = null;
+  await Preferences.remove({ key: 'session_expiration_date' });
+};
+
+// Tout est stocke en claire (probleme de securite)
+export { 
+  setSessionExpirationDate, 
+  getSessionExpirationDate, 
+  isSessionExpired,
+  expireSession
+};

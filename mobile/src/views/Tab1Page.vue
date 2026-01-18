@@ -1,23 +1,69 @@
 <template>
   <ion-page>
+
     <ion-header>
       <ion-toolbar>
         <ion-title>Tab 1</ion-title>
       </ion-toolbar>
     </ion-header>
-    <ion-content :fullscreen="true">
-      <ion-header collapse="condense">
-        <ion-toolbar>
-          <ion-title size="large">Tab 1</ion-title>
-        </ion-toolbar>
-      </ion-header>
 
-      <ExploreContainer name="Tab 1 page" />
+    <ion-content :fullscreen="true">
+      <div id="map" style="height: 100%; width: 100%;"></div>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent } from '@ionic/vue';
-import ExploreContainer from '@/components/ExploreContainer.vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, isPlatform } from '@ionic/vue';
+
+import { onMounted } from 'vue';
+import { Geolocation } from '@capacitor/geolocation';
+import L from 'leaflet';
+
+let map: L.Map | null = null;
+
+const checkGeoLocationPermissions = async () => {
+  if (isPlatform('hybrid')) {
+    const permission = await Geolocation.checkPermissions();
+
+    if (permission.location !== 'granted') {
+      const permission = await Geolocation.requestPermissions();
+      
+      if (permission.location !== 'granted') {
+        // Permission refusee
+      }
+    }
+  }
+};
+
+const initMap = async () => {
+  try {
+    await checkGeoLocationPermissions();
+
+    const coordinates = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      maximumAge: 0
+    });
+
+    const { latitude, longitude } = coordinates.coords;
+
+    map = L.map('map').setView([latitude, longitude], 15);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    L.marker([latitude, longitude])
+      .addTo(map)
+      .bindPopup('Votre position')
+      .openPopup();
+    
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+onMounted(() => {
+  initMap();
+});
 </script>

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { remoteConfig } from '@/services/firebase/routeworks.tracker';
-import { fetchAndActivate, getNumber } from "firebase/remote-config";
+import { activate, fetchAndActivate, getNumber } from "firebase/remote-config";
 
 const useConfigStore = defineStore('routeworks.tracker.config', {
   state: () => ({
@@ -9,9 +9,19 @@ const useConfigStore = defineStore('routeworks.tracker.config', {
   }),
   actions: {
     async loadRemoteConfig() {
-      await fetchAndActivate(remoteConfig);
-      this.sessionDurationMillis = getNumber(remoteConfig, 'session_duration_millis');
-      this.isConfigLoaded = true;
+      try {
+        await fetchAndActivate(remoteConfig);
+      } catch (error) { // Si on est offline (utiliser cache firebase/default value)
+        await activate(remoteConfig);
+      } finally {
+        const remoteValue = getNumber(remoteConfig, 'session_duration_millis');
+        
+        if (remoteValue > 0) {
+          this.sessionDurationMillis = remoteValue;
+        }
+        
+        this.isConfigLoaded = true;
+      }
     }
   }
 });
