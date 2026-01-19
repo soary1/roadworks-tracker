@@ -1,9 +1,7 @@
 import { defineStore } from "pinia";
 import { useGeoLocationPermissionStore } from "./permission";
-import { Geolocation, PositionOptions } from "@capacitor/geolocation";
+import { Geolocation } from "@capacitor/geolocation";
 import { isPlatform } from "@ionic/vue";
-import { showToast } from "@/utils/ui";
-import { locateOutline } from "ionicons/icons";
 
 // https://capacitorjs.com/docs/apis/geolocation#errors
 const CAPACITOR_GEO_ERROR_MESSAGES: Record<string, string> = {
@@ -28,21 +26,12 @@ const CAPACITOR_GEO_ERROR_MESSAGES: Record<string, string> = {
 const useCurrentLocationStore = defineStore('current-geo-location', {
   state: () => ({
     coords: null as { lat: number, lng: number } | null,
-    watchId: null as string | null,
-    isEnablingWatch: false,
+    isRefreshingCoords: false,
   }),
 
-  getters: {
-    isTracked: (state) => state.watchId !== null,
-  },
-
   actions: {
-    async startTracking() {
-      if (this.isTracked || this.isEnablingWatch)  {
-        return;
-      }
-
-      this.isEnablingWatch = true;
+    async refreshCoords() {
+      this.isRefreshingCoords = true;
 
       const permissionStore = useGeoLocationPermissionStore();
 
@@ -51,43 +40,24 @@ const useCurrentLocationStore = defineStore('current-geo-location', {
       }
       
       if (permissionStore.isGranted || !isPlatform('hybrid')) { // Only there for debugging while using web platform
-        const positionOptions: PositionOptions = { 
+        const position = await Geolocation.getCurrentPosition({
           enableHighAccuracy: true,
           timeout: 10_000,
-          maximumAge: 0,
-        };
+          maximumAge: 5_000,
+        });
 
-        this.watchId = await Geolocation.watchPosition(
-          positionOptions, (position, error: any) => {
-            this.isEnablingWatch = false;
-
-            if (error) {
-              const message = 
-                CAPACITOR_GEO_ERROR_MESSAGES[error.code] || 
-                error.message || 
-                'Une erreur inconnue est survenue';
-              
-              showToast(message, 5000, locateOutline, 'danger', 'bottom');
-              // TODO isTracked is still true even if we call stopTracking here
-              return;
-            }
-
-            if (position) {
-              const lat = position.coords.latitude;
-              const lng = position.coords.longitude;
-              this.coords = { lat, lng };
-            }
+        if (position) {
+          const lat = position.coords.altitude;
+          const lng = position.coords.longitude;
+          
+          if (lat && lng) {
+            this.coords = { lat, lng }
           }
-        );
+        }
       }
-    },
 
-    async stopTracking() {
-      if (this.watchId) {
-        await Geolocation.clearWatch({ id: this.watchId });
-        this.watchId = null;
-      }
-    }
+      this.isRefreshingCoords = false;
+    },
   },
 });
 

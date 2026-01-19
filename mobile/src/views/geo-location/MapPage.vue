@@ -12,9 +12,9 @@
         
         <ion-fab-button
           @click="handleLocate"
-          :color="currentLocationStore.isTracked ? 'success' : 'warning'">
+          color="warning">
           
-          <ion-spinner v-if="currentLocationStore.isEnablingWatch" name="crescent"></ion-spinner>
+          <ion-spinner v-if="currentLocationStore.isRefreshingCoords" name="crescent"></ion-spinner>
           <ion-icon v-else :icon="locateOutline"></ion-icon>
         </ion-fab-button>
       
@@ -83,9 +83,7 @@ const mountMap = async () => {
 const currentLocationStore = useCurrentLocationStore();
 
 const handleLocate = async () => {
-  if (!currentLocationStore.isTracked && !currentLocationStore.coords) {
-    await currentLocationStore.startTracking();
-  }
+  await currentLocationStore.refreshCoords();
 }
 
 watch(
