@@ -6,7 +6,7 @@ const events = [
   { id: 1, type: 'danger', title: 'Incident', lat: -18.913, lon: 47.520, description: 'Accident sur la RN7' },
   { id: 2, type: 'works', title: 'Travaux', lat: -18.910, lon: 47.535, description: 'Réfection du revêtement' },
   { id: 3, type: 'warning', title: 'Risque', lat: -18.905, lon: 47.545, description: 'Signalisation défectueuse' },
-  { id: 4, type: 'water', title: 'hola', lat: -18.920, lon: 47.530, description: 'Débordement à Analakely' },
+  { id: 4, type: 'water', title: 'Inondation', lat: -18.920, lon: 47.530, description: 'Débordement à Analakely' },
   { id: 5, type: 'ok', title: 'Validation', lat: -18.907, lon: 47.525, description: 'Zone stabilisée' },
 ]
 
