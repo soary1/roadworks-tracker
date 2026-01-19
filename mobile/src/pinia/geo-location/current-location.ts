@@ -68,7 +68,7 @@ const useCurrentLocationStore = defineStore('current-geo-location', {
                 'Une erreur inconnue est survenue';
               
               showToast(message, 5000, locateOutline, 'danger', 'bottom');
-              this.stopTracking();
+              // TODO isTracked is still true even if we call stopTracking here
               return;
             }
 
