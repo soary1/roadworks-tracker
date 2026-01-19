@@ -83,7 +83,12 @@ watch(
 
     if (!userLocation && map) {
       userLocation = L.marker([lat, lng]).addTo(map);
+      
+      userLocation.bindPopup('<div style="text-align: center;font-weight: bold;">Vous</div>', {
+        closeButton: false
+      });
 
+      userLocation.openPopup();
     } else if (userLocation && map){
       userLocation.setLatLng([lat, lng]);
     }
