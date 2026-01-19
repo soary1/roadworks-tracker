@@ -40,20 +40,18 @@ const useCurrentLocationStore = defineStore('current-geo-location', {
       }
       
       if (permissionStore.isGranted || !isPlatform('hybrid')) { // Only there for debugging while using web platform
-        const position = await Geolocation.getCurrentPosition({
+        await Geolocation.getCurrentPosition({
           enableHighAccuracy: true,
-          timeout: 10_000,
-          maximumAge: 5_000,
-        });
-
-        if (position) {
+          timeout: 3_000,
+          maximumAge: 10_000,
+        }).then(position => {
           const lat = position.coords.altitude;
           const lng = position.coords.longitude;
           
           if (lat && lng) {
             this.coords = { lat, lng }
           }
-        }
+        }); // TODO Manage error
       }
 
       this.isRefreshingCoords = false;
