@@ -33,16 +33,16 @@ const useCurrentLocationStore = defineStore('current-geo-location', {
   }),
 
   getters: {
-    isTracked: (state) => !!state.watchId,
+    isTracked: (state) => state.watchId !== null,
   },
 
   actions: {
     async startTracking() {
-      this.isEnablingWatch = true;
-
-      if (this.isTracked)  {
+      if (this.isTracked || this.isEnablingWatch)  {
         return;
       }
+
+      this.isEnablingWatch = true;
 
       const permissionStore = useGeoLocationPermissionStore();
 
@@ -68,7 +68,7 @@ const useCurrentLocationStore = defineStore('current-geo-location', {
                 'Une erreur inconnue est survenue';
               
               showToast(message, 5000, locateOutline, 'danger', 'bottom');
-              this.startTracking();
+              this.stopTracking();
               return;
             }
 
