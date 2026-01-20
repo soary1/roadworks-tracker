@@ -1,0 +1,75 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:14
+    container_name: monprojet-postgres14
+    environment:
+      POSTGRES_DB: monprojet
+      POSTGRES_USER: monprojet
+      POSTGRES_PASSWORD: monprojet
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monprojet -d monprojet"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: roadworks-backend
+    container_name: monprojet-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/monprojet
+      SPRING_DATASOURCE_USERNAME: monprojet
+      SPRING_DATASOURCE_PASSWORD: monprojet
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontoffice:
+    build:
+      context: ./web/frontoffice
+      dockerfile: Dockerfile
+    image: roadworks-frontoffice
+    container_name: monprojet-frontoffice
+    ports:
+      - "3002:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backoffice:
+    build:
+      context: ./web/backoffice
+      dockerfile: Dockerfile
+    image: roadworks-backoffice
+    container_name: monprojet-backoffice
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  map:
+    image: maptiler/tileserver-gl:latest
+    container_name: roadworks-tileserver
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./maps/data:/data
+    command: ["--mbtiles", "/data/antananarivo.mbtiles"]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
