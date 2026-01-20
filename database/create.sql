@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 create database roadworks_tracker;
 \c roadworks_tracker;
 
@@ -48,7 +50,7 @@ CREATE TABLE account_status (
     FOREIGN KEY (id_status_account) REFERENCES status_account(id)
 );
 
-CREATE TABLE society_btp (
+CREATE TABLE society (
   id BIGSERIAL PRIMARY KEY,
   name VARCHAR(150) NOT NULL,
   siret VARCHAR(30) NOT NULL UNIQUE,
@@ -73,7 +75,7 @@ CREATE TABLE signalement (
 CREATE TABLE signalement_work (
   id BIGSERIAL PRIMARY KEY,
   id_signalement BIGINT NOT NULL,
-  id_society_btp BIGINT NOT NULL,
+  id_society BIGINT NOT NULL,
   start_date DATE,
   end_date_estimation DATE,
   price NUMERIC(14,2),
@@ -81,7 +83,7 @@ CREATE TABLE signalement_work (
   CONSTRAINT fk_work_signalement
     FOREIGN KEY (id_signalement) REFERENCES signalement(id) ON DELETE CASCADE,
   CONSTRAINT fk_work_society
-    FOREIGN KEY (id_society_btp) REFERENCES society_btp(id)
+    FOREIGN KEY (id_society) REFERENCES society(id)
 );
 
 CREATE TABLE signalement_status (
