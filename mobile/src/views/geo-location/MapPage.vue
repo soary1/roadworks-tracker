@@ -10,10 +10,7 @@
     <ion-content :fullscreen="true">
       <ion-fab slot="fixed" horizontal="start" vertical="top">
         
-        <ion-fab-button
-          @click="handleLocate"
-          color="warning">
-          
+        <ion-fab-button @click="handleLocate">
           <ion-spinner v-if="currentLocationStore.isRefreshingCoords" name="crescent"></ion-spinner>
           <ion-icon v-else :icon="locateOutline"></ion-icon>
         </ion-fab-button>

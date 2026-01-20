@@ -1,10 +1,13 @@
 import { defineStore } from "pinia";
-import { useGeoLocationPermissionStore } from "./permission";
 import { Geolocation } from "@capacitor/geolocation";
 import { isPlatform } from "@ionic/vue";
+import { locateOutline } from "ionicons/icons";
+
+import { useGeoLocationPermissionStore } from "./permission";
+import { showToast } from "@/utils/ui";
 
 // https://capacitorjs.com/docs/apis/geolocation#errors
-const CAPACITOR_GEO_ERROR_MESSAGES: Record<string, string> = {
+const CAP_GEO_ERR_MSG: Record<string, string> = {
   'OS-PLUG-GLOC-0002': "Erreur lors de l'obtention de la position.",
   'OS-PLUG-GLOC-0003': "La permission de localisation a été refusée.",
   'OS-PLUG-GLOC-0004': "Paramètres d'entrée invalides pour getCurrentPosition.",
@@ -40,18 +43,23 @@ const useCurrentLocationStore = defineStore('current-geo-location', {
       }
       
       if (permissionStore.isGranted || !isPlatform('hybrid')) { // Only there for debugging while using web platform
-        await Geolocation.getCurrentPosition({
-          enableHighAccuracy: true,
-          timeout: 3_000,
-          maximumAge: 10_000,
-        }).then(position => {
-          const lat = position.coords.altitude;
+        try {
+          const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, });
+
+          const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           
-          if (lat && lng) {
+          if (lat !== undefined && lng !== undefined) {
             this.coords = { lat, lng }
           }
-        }); // TODO Manage error
+        } catch (error: any) {
+          const code = error?.code as string;
+          const message = CAP_GEO_ERR_MSG[code] || 
+            error?.message ||
+            'Une erreur inconnue est survenue.'
+
+          showToast(message, 5000, locateOutline, 'danger', 'middle');
+        }
       }
 
       this.isRefreshingCoords = false;
