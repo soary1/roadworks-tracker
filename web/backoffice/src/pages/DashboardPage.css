@@ -1,0 +1,42 @@
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: #333;
+  color: white;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.logout-button {
+  padding: 8px 14px;
+  background: #555;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  background: #666;
+}
+
+.dashboard-container .map-root {
+  flex: 1;
+  min-height: 0;
+}
+
+.dashboard-container .map-inner {
+  height: 100%;
+  width: 100%;
+}
