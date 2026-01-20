@@ -25,6 +25,7 @@ CREATE TABLE account (
   id BIGSERIAL PRIMARY KEY,
   username VARCHAR(100) NOT NULL UNIQUE,
   pwd VARCHAR(255) NOT NULL,
+  firebase_uid VARCHAR(128) UNIQUE,
   id_role BIGINT NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   last_login TIMESTAMP,

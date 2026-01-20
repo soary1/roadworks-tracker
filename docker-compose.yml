@@ -1,20 +1,21 @@
-version: '3.9'
+version: "3.9"
 
 services:
   postgres:
     image: postgres:14
-    container_name: monprojet-postgres14
+    container_name: roadworks-postgres
     environment:
-      POSTGRES_DB: roadworks_tracker
-      POSTGRES_USER: monprojet
-      POSTGRES_PASSWORD: monprojet
+      POSTGRES_DB: roadworks
+      POSTGRES_USER: roadworks
+      POSTGRES_PASSWORD: roadworks
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./database/create.sql:/docker-entrypoint-initdb.d/create.sql
+      - ./database/create.sql:/docker-entrypoint-initdb.d/01-create.sql
+      - ./database/data.sql:/docker-entrypoint-initdb.d/02-data.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U monprojet -d roadworks_tracker"]
+      test: ["CMD-SHELL", "pg_isready -U roadworks -d roadworks"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -24,15 +25,15 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     image: roadworks-backend
-    container_name: monprojet-backend
+    container_name: roadworks-backend
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/roadworks_tracker
-      SPRING_DATASOURCE_USERNAME: monprojet
-      SPRING_DATASOURCE_PASSWORD: monprojet
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SERVER_PORT: "8080"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/roadworks
+      SPRING_DATASOURCE_USERNAME: roadworks
+      SPRING_DATASOURCE_PASSWORD: roadworks
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SERVER_PORT: "8081"
     ports:
-      - "8084:8080"
+      - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,7 +67,7 @@ services:
     image: maptiler/tileserver-gl:latest
     container_name: roadworks-tileserver
     ports:
-      - "8081:8080"
+      - "8082:8080"
     volumes:
       - ./maps/data:/data
     command: ["--mbtiles", "/data/antananarivo.mbtiles"]

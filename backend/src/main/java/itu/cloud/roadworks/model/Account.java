@@ -21,7 +21,10 @@ public class Account {
     @Column(nullable = false, length = 255)
     private String pwd;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @Column(name = "firebase_uid", length = 128, unique = true)
+    private String firebaseUid;
+
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_role", nullable = false)
     private Role role;
 
@@ -42,4 +45,20 @@ public class Account {
 
     @Column(name = "last_failed_login")
     private Instant lastFailedLogin;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null)
+            createdAt = Instant.now();
+        if (isActive == null)
+            isActive = true;
+        if (isLocked == null)
+            isLocked = false;
+        if (attempts == null)
+            attempts = 0;
+    }
+
+    public boolean isSyncedWithFirebase() {
+        return firebaseUid != null;
+    }
 }
