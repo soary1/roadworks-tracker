@@ -12,6 +12,7 @@ public class SignalementProblemDto {
     private Long id;
     private String typeProblem;
     private String illustrationProblem;
+    private String location;
     private SignalementProblemDetail detail;
 
     @Data

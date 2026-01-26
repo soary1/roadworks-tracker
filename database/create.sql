@@ -1,5 +1,4 @@
-create database roadworks_tracker;
-\c roadworks_tracker;
+\c roadworks;
 
 CREATE TABLE role (
   id BIGSERIAL PRIMARY KEY,

@@ -28,10 +28,6 @@ public class SignalementService {
         SignalementStatus latestStatus = signalement.getStatuses().stream().findFirst().orElse(null);
         SignalementWork latestWork = signalement.getWorks().stream().findFirst().orElse(null);
 
-        System.out.println(latestStatus.getId());
-
-        System.out.println(latestWork.getId());
-
         SignalementProblemDto.SignalementProblemDetail detail = SignalementProblemDto.SignalementProblemDetail.builder()
                 .etat(Optional.ofNullable(latestStatus).map(s -> s.getStatusSignalement().getLibelle()).orElse(null))
                 .dateProblem(signalement.getCreatedAt())
@@ -50,6 +46,7 @@ public class SignalementService {
                 .id(signalement.getId())
                 .typeProblem(signalement.getTypeProblem().getLibelle())
                 .illustrationProblem(signalement.getTypeProblem().getIcone())
+                .location(signalement.getLocation())
                 .detail(detail)
                 .build();
     }

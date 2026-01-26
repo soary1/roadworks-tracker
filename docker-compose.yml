@@ -5,15 +5,15 @@ services:
       dockerfile: docker/postgres/Dockerfile
     container_name: monprojet-postgres14
     environment:
-      POSTGRES_DB: monprojet
-      POSTGRES_USER: monprojet
-      POSTGRES_PASSWORD: monprojet
+      POSTGRES_DB: roadworks
+      POSTGRES_USER: roadworks
+      POSTGRES_PASSWORD: roadworks
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U monprojet -d monprojet"]
+      test: ["CMD-SHELL", "pg_isready -U roadworks -d roadworks"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -24,13 +24,14 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
+      - ~/.m2:/root/.m2
     ports:
       - "8080:8080"
     command: sh -c "mvn spring-boot:run"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/monprojet
-      SPRING_DATASOURCE_USERNAME: monprojet
-      SPRING_DATASOURCE_PASSWORD: monprojet
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/roadworks
+      SPRING_DATASOURCE_USERNAME: roadworks
+      SPRING_DATASOURCE_PASSWORD: roadworks
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
     depends_on:
       - postgres

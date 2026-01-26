@@ -1,101 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
 import { MapView } from './components/MapView'
 import { DashboardView } from './components/DashboardView'
 
-const events = [
-  {
-    id: 1,
-    type_problem: 'accident_routier',
-    illustration_problem: '⛔',
-    lat: -18.913,
-    lon: 47.52,
-    detail_problem: {
-      etat: 'nouveau',
-      date_problem: '2026-01-15T08:00:00Z',
-      surface_m2: 90.3,
-      budget: 95000,
-      entreprise_assign: { id: 1, name: 'BTP Antananarivo' },
-      description: 'Accident avec sortie de route et debris sur la RN7.',
-    },
-  },
-  {
-    id: 2,
-    type_problem: 'travaux_routier',
-    illustration_problem: '🚧',
-    lat: -18.91,
-    lon: 47.535,
-    detail_problem: {
-      etat: 'en_cours',
-      date_problem: '2026-01-10T10:00:00Z',
-      surface_m2: 260,
-      budget: 280000,
-      entreprise_assign: { id: 2, name: 'Reseaux Urbains' },
-      description: 'Travaux de remise en etat du reseau d\'eau potable.',
-    },
-  },
-  {
-    id: 3,
-    type_problem: 'montee_d_eau',
-    illustration_problem: '💧',
-    lat: -18.905,
-    lon: 47.545,
-    detail_problem: {
-      etat: 'en_cours',
-      date_problem: '2026-01-18T09:00:00Z',
-      surface_m2: 150,
-      budget: 180000,
-      entreprise_assign: { id: 3, name: 'Reseau Fluvial' },
-      description: 'Monte d\'eau suite aux fortes pluies, quartier Analakely.',
-    },
-  },
-  {
-    id: 4,
-    type_problem: 'route_fermee',
-    illustration_problem: '🚫',
-    lat: -18.907,
-    lon: 47.525,
-    detail_problem: {
-      etat: 'termine',
-      date_problem: '2026-01-02T10:00:00Z',
-      surface_m2: 200,
-      budget: 215000,
-      entreprise_assign: { id: 2, name: 'Reseaux Urbains' },
-      description: 'Route fermee pour reseau de gaz, detour mis en place.',
-    },
-  },
-  {
-    id: 5,
-    type_problem: 'danger',
-    illustration_problem: '⚠️',
-    lat: -18.903,
-    lon: 47.515,
-    detail_problem: {
-      etat: 'nouveau',
-      date_problem: '2026-01-20T12:00:00Z',
-      surface_m2: 70,
-      budget: 60000,
-      entreprise_assign: { id: 1, name: 'BTP Antananarivo' },
-      description: 'Danger de fissures sur la rive du lac Anosy.',
-    },
-  },
-  {
-    id: 6,
-    type_problem: 'warning',
-    illustration_problem: '⚠️',
-    lat: -18.91,
-    lon: 47.51,
-    detail_problem: {
-      etat: 'en_cours',
-      date_problem: '2026-01-21T15:00:00Z',
-      surface_m2: 30,
-      budget: 40000,
-      entreprise_assign: { id: 3, name: 'Reseau Fluvial' },
-      description: 'Warning sur la signalisation au carrefour Bellonte.',
-    },
-  },
-]
+const locationCoordinates = {
+  Analakely: { lat: -18.913, lon: 47.52 },
+  Isoraka: { lat: -18.91, lon: 47.535 },
+  'Lac Anosy': { lat: -18.91, lon: 47.51 },
+}
+
+const iconTypeMap = {
+  incident: 'danger',
+  travaux: 'travaux_routier',
+  'travaux routier': 'travaux_routier',
+  danger: 'danger',
+  warning: 'warning',
+  'montee d eau': 'montee_d_eau',
+  'route fermee': 'route_fermee',
+  'accident routier': 'accident_routier',
+}
 
 const views = [
   { key: 'map', label: 'Carte' },
@@ -103,10 +27,81 @@ const views = [
   { key: 'list', label: 'Liste' },
 ]
 
+const defaultCoords = { lat: -18.91, lon: 47.52 }
+
+const slugify = (typeProblem = '') =>
+  typeProblem
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '_')
+
+const mapTypeKey = (typeProblem) => {
+  const normalized = typeProblem.trim().toLowerCase()
+  return iconTypeMap[normalized] || slugify(typeProblem) || 'warning'
+}
+
+const mapCoords = (location) => locationCoordinates[location] || defaultCoords
+
+const adaptDtoToEvent = (dto) => {
+  const detail = dto.detail ?? {}
+  const coords = mapCoords(dto.location)
+
+  return {
+    id: dto.id,
+    type_problem: dto.typeProblem || 'incident',
+    illustration_problem: dto.illustrationProblem || '📍',
+    icon_key: mapTypeKey(dto.typeProblem || 'incident'),
+    lat: coords.lat,
+    lon: coords.lon,
+    detail_problem: {
+      etat: detail.etat || 'inconnu',
+      date_problem: detail.dateProblem ?? new Date().toISOString(),
+      surface_m2: Number(detail.surfaceM2 ?? 0),
+      budget: Number(detail.budget ?? 0),
+      entreprise_assign: detail.entrepriseAssign ?? { id: null, name: '—' },
+      description: detail.description ?? 'Aucune description',
+    },
+  }
+}
+
 export default function App() {
   const [activeView, setActiveView] = useState('map')
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+    fetch('http://localhost:8080/api/signalements')
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error('Impossible de récupérer les signalements.')
+        }
+        return res.json()
+      })
+      .then((data) => {
+        setEvents(data.map(adaptDtoToEvent))
+        setError(null)
+      })
+      .catch((err) => {
+        setError(err.message)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }, [])
 
   const renderView = () => {
+    if (loading) {
+      return <p>Chargement des signalements…</p>
+    }
+
+    if (error) {
+      return <p className="error">{error}</p>
+    }
+
     if (activeView === 'map') {
       return <MapView events={events} />
     }
@@ -121,10 +116,12 @@ export default function App() {
         <ul>
           {events.map((event) => (
             <li key={event.id}>
-              <strong>{event.illustration_problem} {event.type_problem.replace(/_/g, ' ')}</strong>
+              <strong>
+                {event.illustration_problem} {event.type_problem.replace(/_/g, ' ')}
+              </strong>
               <p>{event.detail_problem.description}</p>
               <small>
-                Etat: {event.detail_problem.etat} · Budget: {event.detail_problem.budget} Ar
+                Etat: {event.detail_problem.etat} · Budget: {event.detail_problem.budget.toLocaleString()} Ar
               </small>
             </li>
           ))}

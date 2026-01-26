@@ -77,7 +77,7 @@ export function DashboardView({ events }) {
                 <li>Date : {new Date(event.detail_problem.date_problem).toLocaleDateString()}</li>
                 <li>Surface : {event.detail_problem.surface_m2} m²</li>
                 <li>Budget : {event.detail_problem.budget.toLocaleString()} Ar</li>
-                <li>Equipe : {event.detail_problem.entreprise_assign.name}</li>
+                <li>Equipe : {event.detail_problem.entreprise_assign?.name ?? '—'}</li>
               </ul>
               <p className="issue-description">{event.detail_problem.description}</p>
             </article>
