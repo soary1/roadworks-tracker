@@ -1,3 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 \c roadworks;
 
 CREATE TABLE role (

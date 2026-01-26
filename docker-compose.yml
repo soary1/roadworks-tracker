@@ -12,6 +12,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./database/create.sql:/docker-entrypoint-initdb.d/create.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U roadworks -d roadworks"]
       interval: 5s
