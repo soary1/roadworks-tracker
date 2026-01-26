@@ -37,6 +37,12 @@
         @submitted="handleReportSubmitted"
       />
 
+      <roadworks-report-details-modal
+        :is-open="isDetailsModalOpen"
+        :report="selectedReport"
+        @close="isDetailsModalOpen = false"
+      />
+
     </ion-content>
 
   </ion-page>
@@ -61,6 +67,7 @@ import { useAuthSessionStore } from '@/pinia/auth/session';
 import { auth } from '@/services/firebase/routeworks-tracker';
 import { defaultMarker } from '@/components/geo-location/icon';
 import RoadworksReportModal from '@/components/geo-location/RoadworksReportModal.vue';
+import RoadworksReportDetailsModal from '@/components/geo-location/RoadworksReportDetailsModal.vue';
 import { signOut } from 'firebase/auth';
 import router from '@/router';
 
@@ -75,6 +82,9 @@ const currentLocationStore = useCurrentLocationStore();
 const reportStore = useRoadworksReportStore();
 
 const showOnlyMyReports = ref<boolean>(false);
+
+const isDetailsModalOpen = ref<boolean>(false);
+const selectedReport = ref<any>(null);
 
 const mountMap = async () => {
   const mapLoading = await loadingController.create({
@@ -239,6 +249,13 @@ const displayReportsOnMap = () => {
     `;
 
     marker.bindPopup(popupContent);
+    
+    // Ajouter le clic pour afficher les détails
+    marker.on('click', () => {
+      console.log('📖 Clic sur marqueur:', report);
+      selectedReport.value = report;
+      isDetailsModalOpen.value = true;
+    });
   });
 
   console.log(`✅ ${reportsToDisplay.length} marqueurs affichés`);

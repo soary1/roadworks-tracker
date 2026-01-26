@@ -14,6 +14,10 @@ export interface RoadworksReportData {
   lng: number;
   status: 'pothole' | 'blocked_road' | 'accident' | 'construction' | 'flooding' | 'debris' | 'poor_surface' | 'other';
   description?: string;
+  reportStatus?: 'new' | 'in_progress' | 'completed'; // Statut du rapport
+  surface?: number; // en m2
+  budget?: number; // en devise locale
+  company?: string; // Entreprise concernée
   userId?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
