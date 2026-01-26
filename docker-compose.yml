@@ -24,11 +24,9 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
-      - ./backend/.mvn:/app/.mvn
-      - ./backend/mvnw:/app/mvnw
     ports:
       - "8080:8080"
-    command: sh -c "./mvnw spring-boot:run"
+    command: sh -c "mvn spring-boot:run"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/monprojet
       SPRING_DATASOURCE_USERNAME: monprojet
