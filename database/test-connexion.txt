@@ -1,1 +1,8 @@
 docker exec -it monprojet-postgres14 psql -U monprojet -d roadworks_tracker -c "\dt"
+
+
+$body = @{
+    username = "testfirebase123"
+    password = "password123"
+    role = "manager"
+} | ConvertTo-Json; Invoke-RestMethod -Uri "http://localhost:8084/api/auth/register" -Method Post -ContentType "application/json" -Body $body   

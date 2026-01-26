@@ -90,6 +90,8 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        log.info("Début de l'enregistrement pour l'utilisateur: {}", request.getUsername());
+        
         if (accountRepository.existsByUsername(request.getUsername())) {
             return AuthResponse.builder()
                     .message("Ce nom d'utilisateur existe déjà")
@@ -101,9 +103,10 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("Role " + roleLibelle + " non trouvé"));
 
         // Créer l'utilisateur dans Firebase
-        String firebaseUid;
+        String firebaseUid = null;
         try {
-            String email = request.getUsername() + "@roadworks.app"; // Utiliser un email par défaut
+            String email = request.getUsername() + "@mail.com"; // Utiliser un email par défaut
+            log.info("Tentative de création Firebase pour: {} avec email: {}", request.getUsername(), email);
             firebaseUid = firebaseService.createFirebaseUser(
                     email, 
                     request.getPassword(), 
@@ -111,10 +114,8 @@ public class AuthService {
             );
             log.info("Utilisateur créé dans Firebase avec UID: {}", firebaseUid);
         } catch (Exception e) {
-            log.error("Erreur lors de la création de l'utilisateur dans Firebase: {}", e.getMessage());
-            return AuthResponse.builder()
-                    .message("Erreur lors de la création de l'utilisateur: " + e.getMessage())
-                    .build();
+            log.error("Erreur lors de la création de l'utilisateur dans Firebase: {}", e.getMessage(), e);
+            log.warn("Utilisateur sera créé localement sans Firebase UID");
         }
 
         Account account = Account.builder()
