@@ -48,16 +48,24 @@ Firebase peut aussi utiliser `GOOGLE_APPLICATION_CREDENTIALS`:
 export GOOGLE_APPLICATION_CREDENTIALS=/chemin/vers/firebase-key.json
 ```
 
-### 4. Docker Compose
-Ajoutez le fichier de credentials à votre service backend:
+### 4. Docker Compose avec Application Default Credentials
+Créez le dossier `secrets/firebase` à la racine du projet, copiez-y votre fichier `firebase-key.json`, puis montez-le en lecture seule dans le conteneur backend :
+```bash
+mkdir -p secrets/firebase
+# copier firebase-key.json dedans (ne pas versionner ce fichier)
+```
+
+Dans `docker-compose.yml` :
 ```yaml
 backend:
   ...
   volumes:
-    - ./firebase-key.json:/app/firebase-key.json:ro
+    - ./secrets/firebase:/app/secrets/firebase:ro
   environment:
-    - FIREBASE_CREDENTIALS_PATH=/app/firebase-key.json
+    - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/firebase/firebase-key.json
 ```
+
+Spring Boot utilisera `GoogleCredentials.getApplicationDefault()` (ADCs) pour créer le bean `FirebaseAuth` à partir de ce fichier.
 
 ## Flux de création d'utilisateur
 
