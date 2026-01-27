@@ -15,6 +15,7 @@ import itu.cloud.roadworks.repository.AccountRepository;
 import itu.cloud.roadworks.repository.SignalementWorkRepository;
 import itu.cloud.roadworks.repository.CompanyRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QuerySnapshot;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SignalementService {
     private final SignalementRepository repository;
     private final SignalementStatusRepository statusRepository;
@@ -88,6 +90,7 @@ public class SignalementService {
                 .build();
 
         statusRepository.save(newStatus);
+        syncToFirebaseBestEffort(signalementId);
     }
 
     public int syncFromFirebase() throws Exception {
@@ -163,6 +166,24 @@ public class SignalementService {
         return count;
     }
 
+    public SyncAllResult syncAllToFirebase() throws Exception {
+        List<Signalement> signalements = repository.findAll();
+        int synced = 0;
+        int failed = 0;
+
+        for (Signalement signalement : signalements) {
+            try {
+                syncToFirebase(signalement.getId());
+                synced++;
+            } catch (Exception e) {
+                failed++;
+                log.warn("Échec syncToFirebase pour signalement id={}: {}", signalement.getId(), e.getMessage());
+            }
+        }
+
+        return new SyncAllResult(signalements.size(), synced, failed);
+    }
+
     public void addWork(Long signalementId, Map<String, Object> workData) throws Exception {
         try {
             Signalement signalement = repository.findById(signalementId)
@@ -235,6 +256,7 @@ public class SignalementService {
                     .build();
 
             statusRepository.save(signalStatus);
+            syncToFirebaseBestEffort(signalementId);
         } catch (Exception e) {
             System.err.println("Erreur dans addWork: " + e.getMessage());
             e.printStackTrace();
@@ -243,10 +265,13 @@ public class SignalementService {
     }
 
     public void syncToFirebase(Long signalementId) throws Exception {
-        try {
-            Signalement signalement = repository.findById(signalementId)
-                    .orElseThrow(() -> new Exception("Signalement non trouvé"));
+        Signalement signalement = repository.findById(signalementId)
+                .orElseThrow(() -> new Exception("Signalement non trouvé"));
+        syncToFirebase(signalement);
+    }
 
+    private void syncToFirebase(Signalement signalement) throws Exception {
+        try {
             Firestore db = firebaseService.getFirestore();
             if (db == null) {
                 throw new Exception("Firebase n'est pas initialisé");
@@ -271,6 +296,7 @@ public class SignalementService {
             data.put("lng", lng);
             data.put("status", status);
             data.put("lastUpdated", Instant.now().toString());
+            data.put("backendId", signalement.getId());
 
             // Ajouter les informations de travail si elles existent
             if (latestWork != null) {
@@ -286,12 +312,11 @@ public class SignalementService {
             }
 
             // Si le signalement a un firebaseId, mettre à jour le document existant
-            // Sinon, créer un nouveau document
+            // Sinon, créer un nouveau document et sauvegarder son ID
             String firebaseId = signalement.getFirebaseId();
             if (firebaseId != null && !firebaseId.isEmpty()) {
                 db.collection("roadworks_reports").document(firebaseId).set(data).get();
             } else {
-                // Créer un nouveau document et sauvegarder son ID
                 var docRef = db.collection("roadworks_reports").add(data).get();
                 signalement.setFirebaseId(docRef.getId());
                 repository.save(signalement);
@@ -303,4 +328,14 @@ public class SignalementService {
             throw e;
         }
     }
+
+    private void syncToFirebaseBestEffort(Long signalementId) {
+        try {
+            syncToFirebase(signalementId);
+        } catch (Exception e) {
+            log.warn("Sync Firebase ignorée (best effort) pour signalement id={}: {}", signalementId, e.getMessage());
+        }
+    }
+
+    public record SyncAllResult(int total, int synced, int failed) {}
 }

@@ -109,6 +109,30 @@ public class SignalementApi {
     }
 
     @Operation(
+            summary = "Synchroniser tous les signalements vers Firebase",
+            description = "Envoie tous les signalements présents dans la base de données vers Firestore (collection roadworks_reports)"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Synchronisation effectuée avec succès"),
+            @ApiResponse(responseCode = "500", description = "Erreur lors de la synchronisation")
+    })
+    @PostMapping("/sync/firebase/all")
+    public ResponseEntity<?> syncAllToFirebase() {
+        try {
+            var result = service.syncAllToFirebase();
+            return ResponseEntity.ok().body(Map.of(
+                    "message", "Synchronisation complète vers Firebase effectuée avec succès",
+                    "total", result.total(),
+                    "synced", result.synced(),
+                    "failed", result.failed()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(
             summary = "Ajouter une réparation à un signalement",
             description = "Ajoute les détails de réparation et change le statut à en_cours"
     )
