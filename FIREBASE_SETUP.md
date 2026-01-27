@@ -117,3 +117,58 @@ Si la création Firebase échoue:
 3. **Synchroniser les mises à jour** - Mettre à jour Firebase quand un utilisateur est modifié
 4. **Intégrer la connexion Firebase** - Utiliser Firebase pour la connexion aussi
 5. **Authentification mobile** - Connecter votre app mobile avec Firebase
+
+---
+
+## 📲 Synchronisation Firebase Firestore
+
+### Configuration pour importer des signalements depuis Firestore
+
+#### 1. Créer une base Firestore Database
+1. Allez sur https://console.firebase.google.com/
+2. Sélectionnez votre projet
+3. Cliquez sur **Firestore Database** (dans le menu gauche)
+4. Cliquez sur **Créer une base de données**
+5. Mode: **Démarrage en mode test**
+6. Région: `europe-west1` (ou votre région)
+7. Cliquez sur **Créer**
+
+#### 2. Vérifier la clé de service
+Assurez-vous que le fichier JSON a accès à Firestore. Sinon:
+1. Allez à **Paramètres du projet** → **Comptes de service**
+2. Générez une **nouvelle clé privée**
+3. Remplacez le fichier à la racine du projet
+
+#### 3. Ajouter des données à Firestore
+Créez la collection `roadworks_reports` avec des documents:
+```json
+{
+  "description": "Nid de poule au centre-ville",
+  "lat": -18.8792,
+  "lng": 47.5079,
+  "status": "nouveau"
+}
+```
+
+Champs:
+- `description` (requis) - Description du problème
+- `lat` (requis) - Latitude
+- `lng` (requis) - Longitude
+- `status` (optionnel) - "nouveau", "en_cours", "resolu", "rejete"
+
+#### 4. Utiliser dans l'application
+1. Allez sur http://localhost:5174 (Backoffice)
+2. Connectez-vous (`admin / admin123`)
+3. Cliquez sur **🔄 Synchroniser Firestore**
+4. Vous verrez le nombre de signalements importés
+
+### Dépannage
+
+**Erreur 500 - "Credentials failed to obtain metadata - 400 Bad Request"**
+- → La clé de service n'a pas accès à Firestore
+- → Solution: Générez une nouvelle clé privée depuis Firebase Console
+
+**Aucun signalement importé**
+- → Vérifiez que la collection `roadworks_reports` existe
+- → Vérifiez que les documents ont `description`, `lat`, `lng`
+- → Ils ne seront pas importés deux fois (déduplication par `firebase_id`)

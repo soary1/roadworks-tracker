@@ -1,5 +1,5 @@
 docker exec -it monprojet-postgres14 psql -U monprojet -d roadworks_tracker -c "\dt"
-
+psql -U monprojet -d roadworks_tracker
 
 Start-Sleep -Seconds 3; $body = @{
     username = "admin"

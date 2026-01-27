@@ -1,5 +1,4 @@
 
-\c roadworks;
 
 CREATE TABLE role (
   id BIGSERIAL PRIMARY KEY,
@@ -73,6 +72,7 @@ CREATE TABLE signalement (
   picture TEXT,
   surface NUMERIC(12,2),
   id_type_problem BIGINT NOT NULL,
+  firebase_id VARCHAR(255) UNIQUE,
   CONSTRAINT fk_signalement_account
     FOREIGN KEY (id_account) REFERENCES account(id) ON DELETE CASCADE,
   CONSTRAINT fk_signalement_type
@@ -168,6 +168,16 @@ INSERT INTO status_signalement (libelle) VALUES
   ('en_cours'),
   ('resolu'),
   ('rejete');
+
+INSERT INTO type_problem (libelle, icone) VALUES 
+  ('Nid de poule', '⚠️'),
+  ('Glissement de terrain', '🚨'),
+  ('Inondation', '💧'),
+  ('Effondrement de route', '💥'),
+  ('Travaux routiers', '🚧'),
+  ('Obstacle sur la route', '🚷'),
+  ('Marquage usé', '❌'),
+  ('Danger général', '⚠️');
 
 -- Création d'un compte manager par défaut
 -- Mot de passe: admin123 (hashé en SHA-256 puis encodé en Base64)

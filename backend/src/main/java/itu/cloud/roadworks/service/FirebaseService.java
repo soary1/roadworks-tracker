@@ -111,9 +111,15 @@ public class FirebaseService {
      */
     public Firestore getFirestore() {
         try {
-            return FirestoreClient.getFirestore();
+            log.info("Tentative d'obtenir Firestore client...");
+            Firestore firestore = FirestoreClient.getFirestore();
+            log.info("Firestore client obtenu avec succès");
+            return firestore;
+        } catch (IllegalStateException e) {
+            log.error("Firebase app not initialized or not available: {}", e.getMessage(), e);
+            return null;
         } catch (Exception e) {
-            log.error("Erreur lors de l'accès à Firestore: {}", e.getMessage());
+            log.error("Erreur lors de l'accès à Firestore: {}", e.getMessage(), e);
             return null;
         }
     }

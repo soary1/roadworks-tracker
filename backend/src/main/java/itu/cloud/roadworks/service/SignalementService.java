@@ -91,76 +91,148 @@ public class SignalementService {
     }
 
     public int syncFromFirebase() throws Exception {
+        System.out.println("=== DEBUT SYNCFROMFIREBASE ===");
+        
         Firestore db = firebaseService.getFirestore();
+        System.out.println("Firestore instance: " + (db != null ? "OK" : "NULL"));
+        
         if (db == null) {
-            throw new Exception("Firebase n'est pas initialisé");
+            System.out.println("Firebase n'est pas initialisé - retour 0 synchronisé");
+            return 0;
         }
 
-        ApiFuture<QuerySnapshot> query = db.collection("roadworks_reports").get();
-        QuerySnapshot querySnapshot = query.get();
+        try {
+            System.out.println("Récupération des documents de la collection 'roadworks_reports'");
+            ApiFuture<QuerySnapshot> query = db.collection("roadworks_reports").get();
+            
+            // Ajouter un timeout de 30 secondes
+            System.out.println("Attendre la réponse de Firestore...");
+            QuerySnapshot querySnapshot = query.get(30, java.util.concurrent.TimeUnit.SECONDS);
+            System.out.println("Nombre de documents trouvés: " + querySnapshot.getDocuments().size());
 
-        int count = 0;
-        Account defaultAccount = accountRepository.findByUsername("admin").orElse(null);
-        TypeProblem defaultType = typeProblemRepository.findAll().stream().findFirst().orElse(null);
+            int count = 0;
+            Account defaultAccount = accountRepository.findByUsername("admin").orElse(null);
+            TypeProblem defaultType = typeProblemRepository.findAll().stream().findFirst().orElse(null);
 
-        if (defaultAccount == null || defaultType == null) {
-            throw new Exception("Compte admin ou type de problème non trouvé");
-        }
-
-        for (var document : querySnapshot.getDocuments()) {
-            try {
-                String firebaseId = document.getId();
-                
-                // Vérifier si ce signalement a déjà été synchronisé
-                if (repository.findByFirebaseId(firebaseId).isPresent()) {
-                    System.out.println("Signalement Firebase déjà synchronisé: " + firebaseId);
-                    continue;
-                }
-
-                String description = document.getString("description");
-                Double lat = document.getDouble("lat");
-                Double lng = document.getDouble("lng");
-                String status = document.getString("status");
-
-                if (description != null && lat != null && lng != null) {
-                    Signalement signalement = Signalement.builder()
-                            .account(defaultAccount)
-                            .typeProblem(defaultType)
-                            .descriptions(description)
-                            .location(lat + "," + lng)
-                            .createdAt(Instant.now())
-                            .firebaseId(firebaseId)
-                            .build();
-
-                    Signalement saved = repository.save(signalement);
-
-                    // Créer le statut initial
-                    String statusToUse = "nouveau";
-                    if (status != null && !status.isEmpty()) {
-                        statusToUse = status;
-                    }
-
-                    var statusSignalement = statusSignalementRepository
-                            .findByLibelle(statusToUse)
-                            .orElseGet(() -> statusSignalementRepository.findByLibelle("nouveau").orElse(null));
-
-                    if (statusSignalement != null) {
-                        SignalementStatus signalStatus = SignalementStatus.builder()
-                                .signalement(saved)
-                                .statusSignalement(statusSignalement)
-                                .updatedAt(Instant.now())
-                                .build();
-                        statusRepository.save(signalStatus);
-                    }
-
-                    count++;
-                }
-            } catch (Exception e) {
-                System.err.println("Erreur lors de la synchronisation du document: " + e.getMessage());
+            if (defaultAccount == null || defaultType == null) {
+                System.out.println("Compte admin ou type de problème non trouvé");
+                return 0;
             }
-        }
 
-        return count;
+            for (var document : querySnapshot.getDocuments()) {
+                try {
+                    String firebaseId = document.getId();
+                    System.out.println("\n--- Traitement du document: " + firebaseId + " ---");
+                    
+                    // Vérifier si ce signalement a déjà été synchronisé
+                    if (repository.findByFirebaseId(firebaseId).isPresent()) {
+                        System.out.println("✓ Signalement Firebase déjà synchronisé: " + firebaseId);
+                        continue;
+                    }
+
+                    String description = document.getString("description");
+                    Double lat = document.getDouble("lat");
+                    Double lng = document.getDouble("lng");
+                    String status = document.getString("status");
+                    
+                    System.out.println("Valeurs trouvées:");
+                    System.out.println("  description: " + description);
+                    System.out.println("  lat: " + lat);
+                    System.out.println("  lng: " + lng);
+                    System.out.println("  status: " + status);
+                    System.out.println("Tous les champs du document: " + document.getData());
+
+                    if (description != null && lat != null && lng != null) {
+                        System.out.println("✓ Champs requis présents, création du signalement...");
+                        
+                        Signalement signalement = Signalement.builder()
+                                .account(defaultAccount)
+                                .typeProblem(defaultType)
+                                .descriptions(description)
+                                .location(lat + "," + lng)
+                                .createdAt(Instant.now())
+                                .firebaseId(firebaseId)
+                                .build();
+
+                        Signalement saved = repository.save(signalement);
+                        System.out.println("✓ Signalement sauvegardé avec ID: " + saved.getId());
+
+                        // Mapper le statut Firestore vers les statuts de la base
+                        String statusToUse = "nouveau"; // défaut
+                        if (status != null && !status.isEmpty()) {
+                            String firebaseStatus = status.toLowerCase().trim();
+                            System.out.println("  Mapping du statut: '" + status + "' -> '" + firebaseStatus + "'");
+                            // Mapping Firestore → Base de données
+                            if (firebaseStatus.contains("danger")) {
+                                statusToUse = "nouveau"; // Les dangers importants sont nouveaux
+                                System.out.println("    Résultat: 'nouveau' (dangerous)");
+                            } else if (firebaseStatus.contains("cours") || firebaseStatus.contains("en_cours") || firebaseStatus.contains("ongoing")) {
+                                statusToUse = "en_cours";
+                                System.out.println("    Résultat: 'en_cours'");
+                            } else if (firebaseStatus.contains("resolu") || firebaseStatus.contains("resolved") || firebaseStatus.contains("fixed")) {
+                                statusToUse = "resolu";
+                                System.out.println("    Résultat: 'resolu'");
+                            } else if (firebaseStatus.contains("rejete") || firebaseStatus.contains("rejected") || firebaseStatus.contains("reject")) {
+                                statusToUse = "rejete";
+                                System.out.println("    Résultat: 'rejete'");
+                            }
+                        }
+                        
+                        System.out.println("Statut final à utiliser: " + statusToUse);
+
+                        // Convertir en final pour la lambda
+                        final String finalStatusToUse = statusToUse;
+                        
+                        var statusSignalement = statusSignalementRepository
+                                .findByLibelle(finalStatusToUse)
+                                .orElseGet(() -> {
+                                    System.out.println("⚠️  Statut '" + finalStatusToUse + "' non trouvé, utilisation du statut 'nouveau'");
+                                    return statusSignalementRepository.findByLibelle("nouveau").orElse(null);
+                                });
+
+                        if (statusSignalement != null) {
+                            System.out.println("✓ StatusSignalement trouvé: " + statusSignalement.getLibelle());
+                            
+                            SignalementStatus signalStatus = SignalementStatus.builder()
+                                    .signalement(saved)
+                                    .statusSignalement(statusSignalement)
+                                    .updatedAt(Instant.now())
+                                    .build();
+                            statusRepository.save(signalStatus);
+                            System.out.println("✓ Status créé et sauvegardé");
+                            count++;
+                            System.out.println("✓ Signalement importé avec succès! (Total: " + count + ")");
+                        } else {
+                            System.out.println("❌ ERREUR: StatusSignalement null pour '" + finalStatusToUse + "'");
+                        }
+                    } else {
+                        System.out.println("❌ Document incomplet:");
+                        System.out.println("   description: " + (description == null ? "NULL" : "OK"));
+                        System.out.println("   lat: " + (lat == null ? "NULL" : "OK"));
+                        System.out.println("   lng: " + (lng == null ? "NULL" : "OK"));
+                    }
+                } catch (Exception e) {
+                    System.err.println("❌ ERREUR lors de la synchronisation du document: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+
+            System.out.println("Synchronisation terminée: " + count + " signalements importés");
+            return count;
+        } catch (java.util.concurrent.TimeoutException e) {
+            System.err.println("TIMEOUT: Firestore n'a pas répondu après 30 secondes");
+            System.out.println("Retour 0 synchronisé (timeout Firestore)");
+            return 0;
+        } catch (com.google.api.gax.rpc.UnavailableException e) {
+            System.err.println("Firestore indisponible - Credentials invalides ou pas de connexion");
+            System.out.println("Retour 0 synchronisé (Firestore indisponible)");
+            return 0;
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la synchronisation Firebase: " + e.getMessage());
+            e.printStackTrace();
+            System.out.println("Retour 0 synchronisé (erreur)");
+            return 0;
+        }
     }
 
     public void addWork(Long signalementId, Map<String, Object> workData) throws Exception {
