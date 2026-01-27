@@ -94,6 +94,11 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 
 import { auth } from '@/services/firebase/routeworks-tracker';
+import { 
+  isAccountLocked, 
+  recordFailedAttempt, 
+  resetLoginAttempts
+} from '@/services/firebase/auth-attempts';
 import { showToast } from '@/utils/ui';
 import { useConfigStore } from '@/pinia/firebase/routeworks-tracker';
 import { useAuthSessionStore } from '@/pinia/auth/session';
@@ -128,7 +133,21 @@ const handleSignIn = async () => {
   clearErrors();
   awaitSignIn.value = true;
   try {
+    // Vérifier si le compte est bloqué
+    const locked = await isAccountLocked(email.value);
+    if (locked) {
+      errors.value.errorCardTitle = 'Compte bloqué';
+      errors.value.errorCardContent = 
+        'Suite à trop de tentatives échouées, ce compte a été bloqué. Veuillez contacter l\'administrateur pour le débloquer.';
+      errors.value.displayErrorCard = true;
+      awaitSignIn.value = false;
+      return;
+    }
+
     await signInWithEmailAndPassword(auth, email.value, password.value);
+    
+    // Connexion réussie : réinitialiser les tentatives
+    await resetLoginAttempts(email.value);
     
     const configStore = useConfigStore();
     const sessionExpiresAt = Date.now() + configStore.sessionDurationMillis;
@@ -142,6 +161,9 @@ const handleSignIn = async () => {
     router.push('/');
   } catch (error) {
     if (error instanceof FirebaseError) {
+      // Enregistrer la tentative échouée
+      const result = await recordFailedAttempt(email.value);
+      
       switch (error.code) {
         case 'auth/network-request-failed':
           showToast('Vérifiez votre accès internet.', 5000, cloudOfflineOutline, 'danger', 'bottom')
@@ -162,8 +184,20 @@ const handleSignIn = async () => {
         case 'auth/user-not-found':     
         case 'auth/wrong-password':
         case 'auth/invalid-email':
-          errors.value.simpleErrorMessage = 
-          "Veuillez vérifier votre e-mail et votre mot de passe.";
+          // Afficher le nombre de tentatives restantes
+          const remainingAttempts = 3 - result.failedAttempts;
+          if (result.isLocked) {
+            errors.value.errorCardTitle = 'Compte bloqué';
+            errors.value.errorCardContent = 
+              'Suite à trop de tentatives échouées, ce compte a été bloqué. Veuillez contacter l\'administrateur pour le débloquer.';
+            errors.value.displayErrorCard = true;
+          } else if (remainingAttempts > 0) {
+            errors.value.simpleErrorMessage = 
+              `Identifiants incorrects.<br><strong>${remainingAttempts} tentative(s) restante(s)</strong> avant blocage du compte.`;
+          } else {
+            errors.value.simpleErrorMessage = 
+              "Veuillez vérifier votre e-mail et votre mot de passe.";
+          }
           break;
       }
     } else {

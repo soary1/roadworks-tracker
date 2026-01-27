@@ -21,6 +21,8 @@ const routes: Array<RouteRecordRaw> = [
   },
 
   { path: '/auth/signIn', component: () => import('@/views/auth/SignInPage.vue') },
+  { path: '/test/blocking', component: () => import('@/views/TestBlockingPage.vue') },
+  { path: '/admin/blocked-accounts', component: () => import('@/views/admin/AdminBlockedAccountsPage.vue') },
 ]
 
 const router = createRouter({
