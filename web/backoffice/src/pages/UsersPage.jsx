@@ -18,6 +18,14 @@ export default function UsersPage() {
   })
   const [creating, setCreating] = useState(false)
 
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [editData, setEditData] = useState({
+    password: '',
+    role: ''
+  })
+  const [updating, setUpdating] = useState(false)
+
   useEffect(() => {
     fetchUsers()
     fetchRoles()
@@ -102,6 +110,88 @@ export default function UsersPage() {
     navigate('/login')
   }
 
+  const handleEditUser = (user) => {
+    setEditingUser(user)
+    setEditData({
+      password: '',
+      role: user.role
+    })
+    setShowEditModal(true)
+  }
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault()
+    setUpdating(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const token = localStorage.getItem('token')
+      const updatePayload = {
+        role: editData.role
+      }
+      
+      // Ajouter le mot de passe seulement s'il est rempli
+      if (editData.password && editData.password.trim()) {
+        updatePayload.password = editData.password
+      }
+
+      const response = await fetch(`/api/auth/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updatePayload)
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors de la mise à jour')
+      }
+
+      setSuccess(`Utilisateur "${editingUser.username}" modifié avec succès`)
+      setShowEditModal(false)
+      setEditingUser(null)
+      fetchUsers()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleUnlockUser = async (userId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir débloquer cet utilisateur ?')) {
+      return
+    }
+
+    setError('')
+    setSuccess('')
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/auth/users/${userId}/unlock`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors du déverrouillage')
+      }
+
+      setSuccess(`Utilisateur déverrouillé avec succès`)
+      fetchUsers()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -150,6 +240,7 @@ export default function UsersPage() {
                   <th>Rôle</th>
                   <th>Statut</th>
                   <th>Créé le</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -172,6 +263,24 @@ export default function UsersPage() {
                       )}
                     </td>
                     <td>{formatDate(user.createdAt)}</td>
+                    <td className="actions-cell">
+                      <button 
+                        onClick={() => handleEditUser(user)}
+                        className="action-button edit-button"
+                        title="Modifier l'utilisateur"
+                      >
+                        ✏️ Modifier
+                      </button>
+                      {user.isLocked && (
+                        <button 
+                          onClick={() => handleUnlockUser(user.id)}
+                          className="action-button unlock-button"
+                          title="Débloquer l'utilisateur"
+                        >
+                          🔓 Débloquer
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -233,6 +342,63 @@ export default function UsersPage() {
                 </button>
                 <button type="submit" className="btn-create" disabled={creating}>
                   {creating ? 'Création...' : 'Créer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editingUser && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Modifier l'utilisateur: {editingUser.username}</h2>
+              <button onClick={() => setShowEditModal(false)} className="modal-close">
+                &times;
+              </button>
+            </div>
+            <form onSubmit={handleUpdateUser} className="modal-form">
+              <div className="form-group">
+                <label>Nom d'utilisateur</label>
+                <input
+                  type="text"
+                  value={editingUser.username}
+                  disabled
+                  className="form-input-disabled"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-password">Mot de passe (laisser vide pour ne pas modifier)</label>
+                <input
+                  type="password"
+                  id="edit-password"
+                  value={editData.password}
+                  onChange={e => setEditData({ ...editData, password: e.target.value })}
+                  placeholder="Nouveau mot de passe (optionnel)"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-role">Rôle</label>
+                <select
+                  id="edit-role"
+                  value={editData.role}
+                  onChange={e => setEditData({ ...editData, role: e.target.value })}
+                  required
+                >
+                  {roles.map(role => (
+                    <option key={role.id} value={role.libelle}>
+                      {role.libelle}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn-cancel">
+                  Annuler
+                </button>
+                <button type="submit" className="btn-create" disabled={updating}>
+                  {updating ? 'Mise à jour...' : 'Mettre à jour'}
                 </button>
               </div>
             </form>
