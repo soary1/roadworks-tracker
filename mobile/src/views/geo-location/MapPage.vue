@@ -23,7 +23,7 @@
       </ion-fab>
 
       <ion-fab slot="fixed" horizontal="end" vertical="top">
-        <ion-fab-button @click="toggleFilter" :color="showOnlyMyReports ? 'primary' : 'medium'" title="Filtrer les signalements">
+          <ion-fab-button @click="toggleFilter" :color="showOnlyMyReports ? 'primary' : 'medium'" title="Filtrer les signalements">
           <ion-icon :icon="filterOutline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
@@ -136,6 +136,12 @@ const mountMap = async () => {
 
 const handleLocate = async () => {
   await currentLocationStore.refreshCoords();
+
+  // Recentrer la carte sur la position de l'utilisateur
+  const coords = currentLocationStore.coords;
+  if (coords && map) {
+    map.setView([coords.lat, coords.lng], 15);
+  }
 }
 
 const handleReportSubmitted = async () => {
