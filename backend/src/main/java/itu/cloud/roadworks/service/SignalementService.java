@@ -39,6 +39,7 @@ public class SignalementService {
     private final SignalementWorkRepository workRepository;
     private final CompanyRepository companyRepository;
     private final FirebaseService firebaseService;
+    private final NotificationService notificationService;
 
     public List<SignalementProblemDto> findAllProblems() {
         return repository.findAll()
@@ -88,6 +89,9 @@ public class SignalementService {
                 .build();
 
         statusRepository.save(newStatus);
+
+        // Notification WebSocket
+        notificationService.notifyStatusUpdated(signalement, statusName);
     }
 
     public int syncFromFirebase() throws Exception {
@@ -200,7 +204,7 @@ public class SignalementService {
 
                         if (statusSignalement != null) {
                             System.out.println("✓ StatusSignalement trouvé: " + statusSignalement.getLibelle());
-                            
+
                             SignalementStatus signalStatus = SignalementStatus.builder()
                                     .signalement(saved)
                                     .statusSignalement(statusSignalement)
@@ -210,6 +214,9 @@ public class SignalementService {
                             System.out.println("✓ Status créé et sauvegardé");
                             count++;
                             System.out.println("✓ Signalement importé avec succès! (Total: " + count + ")");
+
+                            // Envoyer notification WebSocket pour nouveau signalement
+                            notificationService.notifyNewSignalement(saved);
                         } else {
                             System.out.println("❌ ERREUR: StatusSignalement null pour '" + finalStatusToUse + "'");
                         }
@@ -225,6 +232,12 @@ public class SignalementService {
             }
 
             System.out.println("Synchronisation terminée: " + count + " signalements importés");
+
+            // Notification de fin de synchronisation
+            if (count > 0) {
+                notificationService.notifySyncCompleted(count);
+            }
+
             return count;
         } catch (java.util.concurrent.TimeoutException e) {
             System.err.println("TIMEOUT: Firestore n'a pas répondu après 30 secondes");
@@ -314,6 +327,9 @@ public class SignalementService {
                     .build();
 
             statusRepository.save(signalStatus);
+
+            // Notification WebSocket
+            notificationService.notifyWorkAdded(signalement, company.getName());
         } catch (Exception e) {
             System.err.println("Erreur dans addWork: " + e.getMessage());
             e.printStackTrace();

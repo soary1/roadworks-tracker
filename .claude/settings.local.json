@@ -13,7 +13,11 @@
       "Bash(./mvnw compile:*)",
       "Bash(mvn compile:*)",
       "Bash(./mvnw.cmd compile:*)",
-      "Bash(docker-compose up:*)"
+      "Bash(docker-compose up:*)",
+      "Bash(docker compose up:*)",
+      "Bash(docker compose restart:*)",
+      "Bash(docker compose:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

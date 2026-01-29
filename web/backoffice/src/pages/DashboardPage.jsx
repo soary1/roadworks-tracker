@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import { useNavigate } from 'react-router-dom'
 import { iconByType } from '../mapIcons'
 import SignalementDetailModal from '../components/SignalementDetailModal'
+import NotificationToast from '../components/NotificationToast'
+import { useNotifications } from '../hooks/useNotifications'
 import './DashboardPage.css'
 
 // Mapping des types de problèmes vers les types d'icônes
@@ -31,61 +33,64 @@ export default function DashboardPage() {
   const role = localStorage.getItem('role')
   const username = localStorage.getItem('username')
   const token = localStorage.getItem('token')
-  
+
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState('')
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false)
+
+  const fetchSignalements = useCallback(async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/signalements', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Erreur lors du chargement des signalements')
+      }
+
+      const data = await response.json()
+
+      // Transformer les données pour correspondre au format attendu
+      const transformedEvents = data.map(signalement => {
+        const [lat, lon] = signalement.location.split(',').map(parseFloat)
+        return {
+          id: signalement.id,
+          type: mapProblemTypeToIcon(signalement.typeProblem),
+          title: signalement.typeProblem || 'Signalement',
+          lat: lat || 0,
+          lon: lon || 0,
+          description: signalement.detail?.description || 'Aucune description',
+          status: signalement.detail?.etat || 'nouveau',
+          date: signalement.detail?.dateProblem,
+          work: signalement.detail?.work,
+        }
+      })
+
+      setEvents(transformedEvents)
+    } catch (err) {
+      console.error('Erreur:', err)
+      setError(err.message)
+      setEvents([])
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
+
+  // Hook pour les notifications WebSocket
+  const { connected, notifications, clearNotification, clearAll } = useNotifications()
 
   useEffect(() => {
-    const fetchSignalements = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch('/api/signalements', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error('Erreur lors du chargement des signalements')
-        }
-
-        const data = await response.json()
-        
-        // Transformer les données pour correspondre au format attendu
-        const transformedEvents = data.map(signalement => {
-          const [lat, lon] = signalement.location.split(',').map(parseFloat)
-          return {
-            id: signalement.id,
-            type: mapProblemTypeToIcon(signalement.typeProblem),
-            title: signalement.typeProblem || 'Signalement',
-            lat: lat || 0,
-            lon: lon || 0,
-            description: signalement.detail?.description || 'Aucune description',
-            status: signalement.detail?.etat || 'nouveau',
-            date: signalement.detail?.dateProblem,
-            work: signalement.detail?.work,
-          }
-        })
-        
-        setEvents(transformedEvents)
-      } catch (err) {
-        console.error('Erreur:', err)
-        setError(err.message)
-        // Charger des données par défaut en cas d'erreur
-        setEvents([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchSignalements()
-  }, [token])
+  }, [fetchSignalements])
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -152,8 +157,8 @@ export default function DashboardPage() {
         <div className="header-actions">
           {role === 'manager' && (
             <>
-              <button 
-                onClick={handleSyncFirebase} 
+              <button
+                onClick={handleSyncFirebase}
                 disabled={syncing}
                 className="action-button"
                 title="Synchroniser les données depuis Firebase"
@@ -165,6 +170,62 @@ export default function DashboardPage() {
               </button>
             </>
           )}
+
+          {/* Icône de notification */}
+          <div className="notification-bell-container">
+            <button
+              className="notification-bell"
+              onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+              title="Notifications"
+            >
+              🔔
+              {notifications.length > 0 && (
+                <span className="notification-badge">{notifications.length}</span>
+              )}
+            </button>
+
+            {showNotifDropdown && (
+              <div className="notification-dropdown">
+                <div className="notification-dropdown-header">
+                  <span>Notifications</span>
+                  {notifications.length > 0 && (
+                    <button onClick={() => { clearAll(); setShowNotifDropdown(false); }}>
+                      Tout effacer
+                    </button>
+                  )}
+                </div>
+                <div className="notification-dropdown-list">
+                  {notifications.length === 0 ? (
+                    <div className="notification-empty">Aucune notification</div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className="notification-item"
+                        onClick={() => {
+                          fetchSignalements();
+                          setShowNotifDropdown(false);
+                        }}
+                      >
+                        <div className="notification-item-icon">
+                          {notif.type === 'NEW_SIGNALEMENT' ? '🆕' :
+                           notif.type === 'STATUS_UPDATED' ? '🔄' :
+                           notif.type === 'WORK_ADDED' ? '🔧' : '📢'}
+                        </div>
+                        <div className="notification-item-content">
+                          <div className="notification-item-message">{notif.message}</div>
+                          <div className="notification-item-time">
+                            {new Date(notif.timestamp).toLocaleTimeString('fr-FR')}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button onClick={handleLogout} className="logout-button">
             🚪 Déconnexion
           </button>
@@ -231,6 +292,19 @@ export default function DashboardPage() {
           token={token}
         />
       )}
+
+      {/* Notifications en temps réel */}
+      <NotificationToast
+        notifications={notifications}
+        onDismiss={clearNotification}
+        onRefresh={fetchSignalements}
+      />
+
+      {/* Indicateur de connexion WebSocket */}
+      <div className="ws-status">
+        <div className={`ws-status-dot ${connected ? 'connected' : 'disconnected'}`}></div>
+        <span>{connected ? 'Temps réel' : 'Déconnecté'}</span>
+      </div>
     </div>
   )
 }
