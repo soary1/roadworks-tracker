@@ -11,7 +11,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import itu.cloud.roadworks.dto.SignalementDto;
 import itu.cloud.roadworks.dto.SignalementProblemDto;
+import itu.cloud.roadworks.service.SecurityLogService;
 import itu.cloud.roadworks.service.SignalementService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +29,8 @@ import java.util.Map;
 public class SignalementApi {
 
     private final SignalementService service;
+    private final SecurityLogService securityLogService;
+    private final HttpServletRequest request;
 
     @Operation(
             summary = "Liste tous les signalements avec détails",
@@ -50,7 +54,17 @@ public class SignalementApi {
     })
     @GetMapping
     public List<SignalementProblemDto> findAll() {
+        String username = request.getHeader("X-Username");
+        securityLogService.logViewAllSignalements(null, username, getClientIp(), request.getHeader("User-Agent"));
         return service.findAllProblems();
+    }
+
+    private String getClientIp() {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     @Operation(
@@ -84,10 +98,12 @@ public class SignalementApi {
             @Parameter(description = "ID du signalement", required = true)
             @PathVariable Long id,
             @Parameter(description = "Nouveau statut (nouveau, en_cours, resolu, rejete)")
-            @RequestBody Map<String, String> request) {
+            @RequestBody Map<String, String> requestBody) {
         try {
-            String status = request.get("status");
+            String status = requestBody.get("status");
             service.updateStatus(id, status);
+            String username = request.getHeader("X-Username");
+            securityLogService.logUpdateStatus(id, null, username, getClientIp(), request.getHeader("User-Agent"));
             return ResponseEntity.ok().body(Map.of("message", "Statut mis à jour avec succès"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -118,6 +134,8 @@ public class SignalementApi {
     public ResponseEntity<?> syncFromFirebase() {
         try {
             int count = service.syncFromFirebase();
+            String username = request.getHeader("X-Username");
+            securityLogService.logSyncFirebase(null, username, getClientIp(), request.getHeader("User-Agent"));
             return ResponseEntity.ok().body(Map.of(
                     "message", "Synchronisation effectuée avec succès",
                     "imported", count
@@ -162,9 +180,11 @@ public class SignalementApi {
                     - end_date_estimation: Date de fin estimée
                     - price: Coût estimé
                     """)
-            @RequestBody Map<String, Object> request) {
+            @RequestBody Map<String, Object> requestBody) {
         try {
-            service.addWork(id, request);
+            service.addWork(id, requestBody);
+            String username = request.getHeader("X-Username");
+            securityLogService.logAddWork(id, null, username, getClientIp(), request.getHeader("User-Agent"));
             return ResponseEntity.ok().body(Map.of("message", "Réparation ajoutée avec succès"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -201,6 +221,8 @@ public class SignalementApi {
             @PathVariable Long id) {
         try {
             service.syncToFirebase(id);
+            String username = request.getHeader("X-Username");
+            securityLogService.logSyncToFirebase(id, null, username, getClientIp(), request.getHeader("User-Agent"));
             return ResponseEntity.ok().body(Map.of("message", "Synchronisation vers Firebase effectuée avec succès"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -227,6 +249,8 @@ public class SignalementApi {
     public ResponseEntity<?> findById(
             @Parameter(description = "ID du signalement", required = true)
             @PathVariable Long id) {
+        String username = request.getHeader("X-Username");
+        securityLogService.logViewSignalement(id, null, username, getClientIp(), request.getHeader("User-Agent"));
         return ResponseEntity.ok().body(Map.of("message", "À implémenter"));
     }
 

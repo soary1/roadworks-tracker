@@ -112,7 +112,8 @@ public class SignalementService {
 
             int count = 0;
             Account defaultAccount = accountRepository.findByUsername("admin").orElse(null);
-            TypeProblem defaultType = typeProblemRepository.findAll().stream().findFirst().orElse(null);
+            TypeProblem defaultType = typeProblemRepository.findByLibelle("other")
+                    .orElseGet(() -> typeProblemRepository.findAll().stream().findFirst().orElse(null));
 
             if (defaultAccount == null || defaultType == null) {
                 System.out.println("Compte admin ou type de problème non trouvé");
@@ -123,7 +124,7 @@ public class SignalementService {
                 try {
                     String firebaseId = document.getId();
                     System.out.println("\n--- Traitement du document: " + firebaseId + " ---");
-                    
+
                     // Vérifier si ce signalement a déjà été synchronisé
                     if (repository.findByFirebaseId(firebaseId).isPresent()) {
                         System.out.println("✓ Signalement Firebase déjà synchronisé: " + firebaseId);
@@ -133,22 +134,29 @@ public class SignalementService {
                     String description = document.getString("description");
                     Double lat = document.getDouble("lat");
                     Double lng = document.getDouble("lng");
-                    String status = document.getString("status");
-                    
+                    String status = document.getString("status"); // Type de problème: pothole, accident, etc.
+
                     System.out.println("Valeurs trouvées:");
                     System.out.println("  description: " + description);
                     System.out.println("  lat: " + lat);
                     System.out.println("  lng: " + lng);
-                    System.out.println("  status: " + status);
+                    System.out.println("  status (type): " + status);
                     System.out.println("Tous les champs du document: " + document.getData());
 
-                    if (description != null && lat != null && lng != null) {
+                    if (lat != null && lng != null) {
                         System.out.println("✓ Champs requis présents, création du signalement...");
-                        
+
+                        // Mapper le type de problème Firebase vers la base de données
+                        TypeProblem typeProblem = defaultType;
+                        if (status != null && !status.isEmpty()) {
+                            typeProblem = typeProblemRepository.findByLibelle(status).orElse(defaultType);
+                            System.out.println("  Type de problème mappé: " + typeProblem.getLibelle());
+                        }
+
                         Signalement signalement = Signalement.builder()
                                 .account(defaultAccount)
-                                .typeProblem(defaultType)
-                                .descriptions(description)
+                                .typeProblem(typeProblem)
+                                .descriptions(description != null ? description : "")
                                 .location(lat + "," + lng)
                                 .createdAt(Instant.now())
                                 .firebaseId(firebaseId)
@@ -207,7 +215,6 @@ public class SignalementService {
                         }
                     } else {
                         System.out.println("❌ Document incomplet:");
-                        System.out.println("   description: " + (description == null ? "NULL" : "OK"));
                         System.out.println("   lat: " + (lat == null ? "NULL" : "OK"));
                         System.out.println("   lng: " + (lng == null ? "NULL" : "OK"));
                     }
@@ -324,9 +331,17 @@ public class SignalementService {
                 throw new Exception("Firebase n'est pas initialisé");
             }
 
-            // Récupérer le dernier statut
+            // Récupérer le dernier statut (nouveau, en_cours, resolu, rejete)
             SignalementStatus latestStatus = signalement.getStatuses().stream().findFirst().orElse(null);
-            String status = latestStatus != null ? latestStatus.getStatusSignalement().getLibelle() : "nouveau";
+            String reportStatus = latestStatus != null ? latestStatus.getStatusSignalement().getLibelle() : "nouveau";
+
+            // Mapper le statut backend vers le format mobile
+            String mobileReportStatus = "new";
+            if ("en_cours".equals(reportStatus)) {
+                mobileReportStatus = "in_progress";
+            } else if ("resolu".equals(reportStatus)) {
+                mobileReportStatus = "completed";
+            }
 
             // Récupérer le dernier work s'il existe
             SignalementWork latestWork = signalement.getWorks().stream().findFirst().orElse(null);
@@ -341,7 +356,8 @@ public class SignalementService {
             data.put("description", signalement.getDescriptions());
             data.put("lat", lat);
             data.put("lng", lng);
-            data.put("status", status);
+            data.put("status", signalement.getTypeProblem().getLibelle()); // Type de problème: pothole, accident, etc.
+            data.put("reportStatus", mobileReportStatus); // Statut: new, in_progress, completed
             data.put("lastUpdated", Instant.now().toString());
 
             // Ajouter les informations de travail si elles existent

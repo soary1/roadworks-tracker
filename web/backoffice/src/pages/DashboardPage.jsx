@@ -7,17 +7,23 @@ import './DashboardPage.css'
 
 // Mapping des types de problèmes vers les types d'icônes
 const mapProblemTypeToIcon = (typeName) => {
-  if (!typeName) return 'warning'
-  
+  if (!typeName) return 'other'
+
   const lower = typeName.toLowerCase()
+
+  // Types directs depuis Firebase/mobile
+  const directTypes = ['pothole', 'blocked_road', 'accident', 'construction', 'flooding', 'debris', 'poor_surface', 'other']
+  if (directTypes.includes(lower)) return lower
+
+  // Fallback pour anciens types français
   if (lower.includes('danger')) return 'danger'
-  if (lower.includes('travaux') || lower.includes('work')) return 'works'
-  if (lower.includes('inondation') || lower.includes('eau') || lower.includes('water')) return 'water'
-  if (lower.includes('fermée') || lower.includes('closed') || lower.includes('barr')) return 'ok'
-  if (lower.includes('risque') || lower.includes('warning')) return 'warning'
+  if (lower.includes('travaux') || lower.includes('work')) return 'construction'
+  if (lower.includes('inondation') || lower.includes('eau') || lower.includes('water')) return 'flooding'
+  if (lower.includes('fermée') || lower.includes('closed') || lower.includes('barr')) return 'blocked_road'
+  if (lower.includes('risque') || lower.includes('warning')) return 'poor_surface'
   if (lower.includes('résolu')) return 'ok'
-  
-  return 'warning'
+
+  return 'other'
 }
 
 export default function DashboardPage() {
