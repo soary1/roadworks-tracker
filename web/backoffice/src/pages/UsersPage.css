@@ -79,6 +79,8 @@
 
 .users-toolbar {
   margin-bottom: 20px;
+  display: flex;
+  gap: 12px;
 }
 
 .create-button {
@@ -95,6 +97,27 @@
 
 .create-button:hover {
   background: #1976d2;
+}
+
+.import-button {
+  padding: 10px 20px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.import-button:hover:not(:disabled) {
+  background: #388e3c;
+}
+
+.import-button:disabled {
+  background: #a5d6a7;
+  cursor: not-allowed;
 }
 
 .loading {

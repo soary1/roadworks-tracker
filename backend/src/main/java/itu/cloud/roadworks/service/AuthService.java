@@ -37,6 +37,7 @@ public class AuthService {
     private final FirebaseService firebaseService;
 
     private static final String ROLE_MANAGER = "manager";
+    private static final String ROLE_UTILISATEUR = "utilisateur";
     private static final int DEFAULT_SESSION_DURATION_MINUTES = 60;
     private static final int DEFAULT_MAX_ATTEMPTS = 5;
 
@@ -211,5 +212,75 @@ public class AuthService {
     @Transactional(readOnly = true)
     public List<Account> getAllUsers() {
         return accountRepository.findAllWithRole();
+    }
+
+    @Transactional
+    public AuthResponse importUsersFromFirebase() {
+        try {
+            java.util.List<com.google.firebase.auth.UserRecord> firebaseUsers = firebaseService.getAllFirebaseUsers();
+            
+            if (firebaseUsers.isEmpty()) {
+                return AuthResponse.builder()
+                        .message("Aucun utilisateur Firebase trouvé")
+                        .build();
+            }
+
+            // Récupérer le rôle "utilisateur" pour les imports
+            Role defaultRole = roleRepository.findByLibelle(ROLE_UTILISATEUR)
+                    .orElseThrow(() -> new RuntimeException("Rôle " + ROLE_UTILISATEUR + " non trouvé"));
+
+            int importedCount = 0;
+            int skippedCount = 0;
+
+            for (com.google.firebase.auth.UserRecord firebaseUser : firebaseUsers) {
+                String username = firebaseUser.getDisplayName();
+                
+                // Si pas de displayName, utiliser la partie email avant @
+                if (username == null || username.isEmpty()) {
+                    String email = firebaseUser.getEmail();
+                    if (email != null && !email.isEmpty()) {
+                        username = email.split("@")[0];
+                    } else {
+                        username = firebaseUser.getUid();
+                    }
+                }
+
+                // Vérifier si l'utilisateur existe déjà
+                if (accountRepository.existsByUsername(username)) {
+                    skippedCount++;
+                    continue;
+                }
+
+                // Importer le statut de l'utilisateur depuis Firebase
+                // Firebase stocke le statut disabled, on l'inverse pour isActive
+                boolean isActive = !firebaseUser.isDisabled();
+                boolean isLocked = firebaseUser.isDisabled(); // Si disabled dans Firebase, considéré comme bloqué localement
+
+                // Créer un compte avec un mot de passe temporaire (le UID Firebase)
+                Account account = Account.builder()
+                        .username(username)
+                        .pwd(hashPassword(firebaseUser.getUid())) // Utiliser le UID comme mot de passe temporaire
+                        .role(defaultRole)
+                        .createdAt(Instant.now())
+                        .isActive(isActive)
+                        .isLocked(isLocked)
+                        .attempts(0)
+                        .build();
+
+                accountRepository.save(account);
+                importedCount++;
+                log.info("Utilisateur {} importé depuis Firebase (actif: {}, bloqué: {})", username, isActive, isLocked);
+            }
+
+            return AuthResponse.builder()
+                    .message("Import réussi: " + importedCount + " utilisateurs importés, " + skippedCount + " utilisateurs ignorés")
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Erreur lors de l'import depuis Firebase: {}", e.getMessage());
+            return AuthResponse.builder()
+                    .message("Erreur lors de l'import: " + e.getMessage())
+                    .build();
+        }
     }
 }

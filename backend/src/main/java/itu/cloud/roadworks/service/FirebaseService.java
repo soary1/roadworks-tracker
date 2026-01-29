@@ -123,4 +123,28 @@ public class FirebaseService {
             return null;
         }
     }
+
+    /**
+     * Récupère tous les utilisateurs de Firebase
+     * @return Liste des enregistrements d'utilisateurs Firebase
+     */
+    public java.util.List<UserRecord> getAllFirebaseUsers() {
+        try {
+            java.util.List<UserRecord> users = new java.util.ArrayList<>();
+            com.google.firebase.auth.ListUsersPage page = firebaseAuth.listUsers(null);
+            
+            while (page != null) {
+                for (UserRecord userRecord : page.getValues()) {
+                    users.add(userRecord);
+                }
+                page = page.getNextPage();
+            }
+            
+            log.info("Récupération réussie de {} utilisateurs Firebase", users.size());
+            return users;
+        } catch (FirebaseAuthException e) {
+            log.error("Erreur lors de la récupération des utilisateurs Firebase: {}", e.getMessage());
+            throw new RuntimeException("Impossible de récupérer les utilisateurs Firebase: " + e.getMessage(), e);
+        }
+    }
 }

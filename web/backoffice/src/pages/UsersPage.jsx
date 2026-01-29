@@ -25,6 +25,7 @@ export default function UsersPage() {
     role: ''
   })
   const [updating, setUpdating] = useState(false)
+  const [importingFirebase, setImportingFirebase] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -192,6 +193,39 @@ export default function UsersPage() {
     }
   }
 
+  const handleImportFromFirebase = async () => {
+    if (!window.confirm('Êtes-vous sûr de vouloir importer les utilisateurs depuis Firebase? Cette action créera des comptes locaux pour tous les utilisateurs Firebase.')) {
+      return
+    }
+
+    setImportingFirebase(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/auth/import-firebase', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors de l\'import')
+      }
+
+      setSuccess(`Utilisateurs Firebase importés avec succès`)
+      fetchUsers()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setImportingFirebase(false)
+    }
+  }
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -225,6 +259,13 @@ export default function UsersPage() {
         <div className="users-toolbar">
           <button onClick={() => setShowModal(true)} className="create-button">
             + Créer un utilisateur
+          </button>
+          <button 
+            onClick={handleImportFromFirebase} 
+            className="import-button"
+            disabled={importingFirebase}
+          >
+            {importingFirebase ? '⏳ Import en cours...' : '📥 Importer de Firebase'}
           </button>
         </div>
 

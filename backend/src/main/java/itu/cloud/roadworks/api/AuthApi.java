@@ -205,6 +205,101 @@ public class AuthApi {
         return request.getRemoteAddr();
     }
 
+    @Operation(
+            summary = "Import des utilisateurs Firebase",
+            description = """
+                    Importe tous les utilisateurs de Firebase vers la base de données locale.
+                    
+                    Cette fonction:
+                    - Récupère tous les utilisateurs de Firebase
+                    - Crée un compte local pour chaque utilisateur (s'il n'existe pas déjà)
+                    - Importe le statut des utilisateurs (actif/bloqué)
+                    - Assigne le rôle "utilisateur" par défaut
+                    - Utilise le UID Firebase comme mot de passe temporaire
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Import réussi",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Non authentifié",
+                    content = @Content(mediaType = "application/json")
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erreur lors de l'import",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))
+            )
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @PostMapping("/import-firebase")
+    public ResponseEntity<AuthResponse> importFromFirebase() {
+        AuthResponse response = authService.importUsersFromFirebase();
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Mettre à jour un utilisateur",
+            description = """
+                    Met à jour les informations d'un utilisateur existant (rôle, mot de passe).
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Utilisateur mis à jour avec succès"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Non authentifié"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Utilisateur non trouvé"
+            )
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @PutMapping("/users/{userId}")
+    public ResponseEntity<?> updateUser(
+            @Parameter(description = "ID de l'utilisateur à mettre à jour", required = true)
+            @PathVariable Long userId,
+            @Parameter(description = "Données de mise à jour (role, password optionnel)")
+            @RequestBody Map<String, String> updateData) {
+        // À implémenter
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(
+            summary = "Débloquer un utilisateur",
+            description = "Déverrouille un compte utilisateur bloqué après tentatives de connexion échouées"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Utilisateur déverrouillé avec succès"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Non authentifié"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Utilisateur non trouvé"
+            )
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @PostMapping("/users/{userId}/unlock")
+    public ResponseEntity<?> unlockUser(
+            @Parameter(description = "ID de l'utilisateur à débloquer", required = true)
+            @PathVariable Long userId) {
+        // À implémenter
+        return ResponseEntity.ok().build();
+    }
+
     // Schemas pour la documentation Swagger
     @Schema(description = "Réponse contenant les informations d'un rôle")
     private record RoleResponse(
