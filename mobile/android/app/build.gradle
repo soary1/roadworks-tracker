@@ -3,6 +3,12 @@ apply plugin: 'com.android.application'
 android {
     namespace = "io.ionic.starter"
     compileSdk = rootProject.ext.compileSdkVersion
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    
     defaultConfig {
         applicationId "io.ionic.starter"
         minSdkVersion rootProject.ext.minSdkVersion
