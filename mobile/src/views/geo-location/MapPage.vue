@@ -71,6 +71,12 @@ import RoadworksReportModal from '@/components/geo-location/RoadworksReportModal
 import RoadworksReportDetailsModal from '@/components/geo-location/RoadworksReportDetailsModal.vue';
 import { signOut } from 'firebase/auth';
 import router from '@/router';
+import {
+  getStatusLabel,
+  getStatusEmoji,
+  getReportStatusLabel,
+  formatDateShort,
+} from '@/utils/roadworks-utils';
 
 const isGeoLocationModalOpen = ref<boolean>(false);
 let map: L.Map | null = null;
@@ -165,77 +171,6 @@ const handleSignOut = async () => {
   router.push('/auth/signIn');
 }
 
-const getStatusColor = (status: string): string => {
-  switch (status) {
-    case 'pothole': return '#FF6B6B'; // Rouge
-    case 'blocked_road': return '#FF8C00'; // Orange foncé
-    case 'accident': return '#DC143C'; // Cramoisé
-    case 'construction': return '#FFD700'; // Or
-    case 'flooding': return '#1E90FF'; // Bleu
-    case 'debris': return '#A9A9A9'; // Gris
-    case 'poor_surface': return '#FFA500'; // Orange
-    case 'other': return '#808080'; // Gris foncé
-    default: return '#808080';
-  }
-};
-
-const getStatusLabel = (status: string): string => {
-  switch (status) {
-    case 'pothole': return '🕳️ Nid-de-poule';
-    case 'blocked_road': return '🚧 Route barrée';
-    case 'accident': return '🚨 Accident';
-    case 'construction': return '🏗️ Travaux';
-    case 'flooding': return '💧 Inondation';
-    case 'debris': return '🪨 Débris';
-    case 'poor_surface': return '⚠️ Mauvaise surface';
-    case 'other': return '❓ Autre';
-    default: return status;
-  }
-};
-
-const getStatusEmoji = (status: string): string => {
-  switch (status) {
-    case 'pothole': return '🕳️';
-    case 'blocked_road': return '🚧';
-    case 'accident': return '🚨';
-    case 'construction': return '🏗️';
-    case 'flooding': return '💧';
-    case 'debris': return '🪨';
-    case 'poor_surface': return '⚠️';
-    case 'other': return '❓';
-    default: return '📍';
-  }
-};
-
-const getReportStatusLabel = (status: string): string => {
-  switch (status) {
-    case 'new': return 'Nouveau';
-    case 'in_progress': return 'En cours';
-    case 'completed': return 'Terminé';
-    default: return status;
-  }
-};
-
-const formatDateForPopup = (date: any): string => {
-  if (!date) return '—';
-
-  let dateObj: Date;
-  if (date.toDate) {
-    dateObj = date.toDate();
-  } else if (date instanceof Date) {
-    dateObj = date;
-  } else if (typeof date === 'number') {
-    dateObj = new Date(date);
-  } else {
-    return '—';
-  }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(dateObj);
-};
 
 const displayReportsOnMap = () => {
   if (!map) return;
@@ -275,16 +210,17 @@ const displayReportsOnMap = () => {
       icon: emojiIcon,
     }).addTo(map!);
 
+    const work = (report as any).work;
     const popupContent = `
       <div style="text-align: center; padding: 8px; width: 150px;">
         <strong>${getStatusLabel(report.status)}</strong>
         ${report.description ? `<p style="margin: 4px 0; font-size: 12px;">${report.description}</p>` : ''}
         <div style="margin-top: 6px; font-size: 12px; text-align: left;">
-          <div><strong>Date:</strong> ${formatDateForPopup((report as any).createdAt)}</div>
+          <div><strong>Date:</strong> ${formatDateShort((report as any).createdAt)}</div>
           <div><strong>Statut:</strong> ${getReportStatusLabel((report as any).reportStatus || 'new')}</div>
-          <div><strong>Surface:</strong> ${(report as any).surface != null ? `${(report as any).surface} m²` : '—'}</div>
-          <div><strong>Budget:</strong> ${(report as any).budget != null ? `${Number((report as any).budget).toLocaleString()} Ar` : '—'}</div>
-          <div><strong>Entreprise:</strong> ${(report as any).company || '—'}</div>
+          <div><strong>Surface:</strong> ${work?.surface != null ? `${work.surface} m²` : '—'}</div>
+          <div><strong>Prix:</strong> ${work?.price != null ? `${Number(work.price).toLocaleString()} Ar` : '—'}</div>
+          <div><strong>Entreprise:</strong> ${work?.company || '—'}</div>
         </div>
         <small style="color: #999;">
           ${report.lat.toFixed(5)}, ${report.lng.toFixed(5)}

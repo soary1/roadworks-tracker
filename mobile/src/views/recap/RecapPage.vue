@@ -112,12 +112,12 @@ const reportStore = useRoadworksReportStore();
 
 const summary = computed(() => {
   return reportStore.reports.reduce(
-    (acc, report) => {
-      const state = report.reportStatus ?? 'new';
+    (acc, report: any) => {
+      const state = (report.reportStatus ?? 'new') as 'new' | 'in_progress' | 'completed';
       acc.states[state] = (acc.states[state] ?? 0) + 1;
       acc.nbPoints += 1;
-      acc.totalSurface += Number(report.surface ?? 0);
-      acc.totalBudget += Number(report.budget ?? 0);
+      acc.totalSurface += Number(report.work?.surface ?? 0);
+      acc.totalBudget += Number(report.work?.price ?? 0);
       if (state === 'completed') {
         acc.completed += 1;
       }

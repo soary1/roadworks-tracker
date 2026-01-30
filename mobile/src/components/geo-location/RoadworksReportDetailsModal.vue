@@ -44,88 +44,50 @@
         <ion-card-content>
           <ion-item>
             <ion-label>État du rapport:</ion-label>
-            <ion-badge :color="getStatusColor(report.reportStatus || 'new')">
+            <ion-badge :color="getReportStatusColor(report.reportStatus || 'new')">
               {{ getReportStatusLabel(report.reportStatus || 'new') }}
             </ion-badge>
           </ion-item>
         </ion-card-content>
       </ion-card>
 
-      <!-- Surface -->
-      <ion-card>
+      <!-- Travaux -->
+      <ion-card class="work-card">
         <ion-card-header>
-          <ion-card-title>📐 Surface affectée</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          <p>
-            <strong>
-              {{ report.surface != null ? `${report.surface} m²` : '—' }}
-            </strong>
-          </p>
-        </ion-card-content>
-      </ion-card>
-
-      <!-- Budget -->
-      <ion-card>
-        <ion-card-header>
-          <ion-card-title>💰 Budget estimé</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          <p>
-            <strong>
-              {{ report.budget != null ? `${report.budget.toLocaleString()} Ar` : '—' }}
-            </strong>
-          </p>
-        </ion-card-content>
-      </ion-card>
-
-      <!-- Entreprise -->
-      <ion-card>
-        <ion-card-header>
-          <ion-card-title>🏢 Entreprise concernée</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          <p><strong>{{ report.company || '—' }}</strong></p>
-        </ion-card-content>
-      </ion-card>
-
-      <!-- Travaux assignés -->
-      <ion-card v-if="report.work" class="work-card">
-        <ion-card-header>
-          <ion-card-title>🔧 Travaux assignés</ion-card-title>
+          <ion-card-title>🔧 Travaux</ion-card-title>
         </ion-card-header>
         <ion-card-content>
           <ion-item lines="none">
             <ion-label>
               <p class="work-label">Entreprise</p>
-              <h3>{{ report.work.company }}</h3>
+              <h3>{{ report.work?.company || '—' }}</h3>
             </ion-label>
           </ion-item>
           <ion-item lines="none">
             <ion-label>
               <p class="work-label">Surface</p>
-              <h3>{{ report.work.surface }} m²</h3>
+              <h3>{{ report.work?.surface != null ? `${report.work.surface} m²` : '—' }}</h3>
             </ion-label>
           </ion-item>
           <ion-item lines="none">
             <ion-label>
               <p class="work-label">Prix</p>
-              <h3>{{ report.work.price.toLocaleString() }} Ar</h3>
+              <h3>{{ report.work?.price != null ? `${report.work.price.toLocaleString()} Ar` : '—' }}</h3>
             </ion-label>
           </ion-item>
-          <ion-item lines="none">
+          <ion-item v-if="report.work?.startDate" lines="none">
             <ion-label>
               <p class="work-label">Date de début</p>
               <h3>{{ formatSimpleDate(report.work.startDate) }}</h3>
             </ion-label>
           </ion-item>
-          <ion-item lines="none">
+          <ion-item v-if="report.work?.endDateEstimation" lines="none">
             <ion-label>
               <p class="work-label">Date de fin estimée</p>
               <h3>{{ formatSimpleDate(report.work.endDateEstimation) }}</h3>
             </ion-label>
           </ion-item>
-          <ion-item v-if="report.work.realEndDate" lines="none">
+          <ion-item v-if="report.work?.realEndDate" lines="none">
             <ion-label>
               <p class="work-label">Date de fin réelle</p>
               <h3>{{ formatSimpleDate(report.work.realEndDate) }}</h3>
@@ -141,10 +103,10 @@
         </ion-card-header>
         <ion-card-content>
           <p>
-            <strong>Date:</strong> {{ report.createdAt ? formatDate(report.createdAt) : '—' }}
+            <strong>Date:</strong> {{ report.createdAt ? formatDateLong(report.createdAt) : '—' }}
           </p>
           <p>
-            <strong>Mis à jour:</strong> {{ report.updatedAt ? formatDate(report.updatedAt) : '—' }}
+            <strong>Mis à jour:</strong> {{ report.updatedAt ? formatDateLong(report.updatedAt) : '—' }}
           </p>
         </ion-card-content>
       </ion-card>
@@ -170,6 +132,14 @@ import {
   IonBadge,
 } from '@ionic/vue';
 import { RoadworksReportWithId } from '@/services/firebase/roadworks-reports';
+import {
+  getStatusLabel,
+  getStatusEmoji,
+  getReportStatusLabel,
+  getReportStatusColor,
+  formatDateLong,
+  formatSimpleDate,
+} from '@/utils/roadworks-utils';
 
 interface Props {
   isOpen: boolean;
@@ -177,89 +147,6 @@ interface Props {
 }
 
 defineProps<Props>();
-
-const getStatusLabel = (status: string): string => {
-  switch (status) {
-    case 'pothole': return '🕳️ Nid-de-poule';
-    case 'blocked_road': return '🚧 Route barrée';
-    case 'accident': return '🚨 Accident';
-    case 'construction': return '🏗️ Travaux';
-    case 'flooding': return '💧 Inondation';
-    case 'debris': return '🪨 Débris';
-    case 'poor_surface': return '⚠️ Mauvaise surface';
-    case 'other': return '❓ Autre';
-    default: return status;
-  }
-};
-
-const getStatusEmoji = (status: string): string => {
-  switch (status) {
-    case 'pothole': return '🕳️';
-    case 'blocked_road': return '🚧';
-    case 'accident': return '🚨';
-    case 'construction': return '🏗️';
-    case 'flooding': return '💧';
-    case 'debris': return '🪨';
-    case 'poor_surface': return '⚠️';
-    case 'other': return '❓';
-    default: return '📍';
-  }
-};
-
-const getReportStatusLabel = (status: string): string => {
-  switch (status) {
-    case 'new': return 'Nouveau';
-    case 'in_progress': return 'En cours';
-    case 'completed': return 'Terminé';
-    default: return status;
-  }
-};
-
-const getStatusColor = (status: string): string => {
-  switch (status) {
-    case 'new': return 'primary';
-    case 'in_progress': return 'warning';
-    case 'completed': return 'success';
-    default: return 'medium';
-  }
-};
-
-const formatDate = (date: any): string => {
-  if (!date) return 'N/A';
-
-  let dateObj: Date;
-
-  // Si c'est un Timestamp Firestore
-  if (date.toDate) {
-    dateObj = date.toDate();
-  } else if (date instanceof Date) {
-    dateObj = date;
-  } else if (typeof date === 'number') {
-    dateObj = new Date(date);
-  } else {
-    return 'N/A';
-  }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(dateObj);
-};
-
-const formatSimpleDate = (dateString: string): string => {
-  if (!dateString) return 'N/A';
-
-  const dateObj = new Date(dateString);
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(dateObj);
-};
 </script>
 
 <style scoped>

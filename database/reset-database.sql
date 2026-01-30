@@ -45,11 +45,13 @@ CREATE TABLE account (
 );
 
 CREATE TABLE company (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    contact VARCHAR(255),
-    email VARCHAR(100),
-    phone VARCHAR(20)
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  siret VARCHAR(30) NOT NULL UNIQUE,
+  address VARCHAR(255) NOT NULL,
+  phone VARCHAR(30),
+  email VARCHAR(150),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE config (
@@ -135,3 +137,6 @@ INSERT INTO type_problem (libelle, icone) VALUES
 -- Mot de passe: admin123 (hashé avec bcrypt)
 INSERT INTO account (username, pwd, id_role, is_active) 
 VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcg7b3XeKeUxWdeS86E36P4/TVm', 4, TRUE);
+INSERT INTO company (id, name, siret, address, phone, email) VALUES
+  (1, 'BTP Antananarivo', '12345678900010', '1 Rue de l''Independance', '+26120202020', 'contact@btp-ants.com'),
+  (2, 'Reseaux Urbains', '98765432100011', '12 Avenue de France', '+26120202021', 'info@reseaux-urbains.mg');
