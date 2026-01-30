@@ -82,7 +82,7 @@ export default function LoginPage() {
         </form>
 
         <div className="login-footer">
-          <p>Compte par défaut: <strong>admin</strong> / <strong>manager123</strong></p>
+          <p>Compte par défaut: <strong>admin</strong> / <strong>admin123</strong></p>
         </div>
       </div>
     </div>

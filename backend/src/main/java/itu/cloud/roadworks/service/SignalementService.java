@@ -376,6 +376,19 @@ public class SignalementService {
             data.put("reportStatus", mobileReportStatus); // Statut: new, in_progress, completed
             data.put("lastUpdated", Instant.now().toString());
 
+            // Préserver le userId existant si le document existe déjà dans Firebase
+            String firebaseId = signalement.getFirebaseId();
+            if (firebaseId != null && !firebaseId.isEmpty()) {
+                try {
+                    var existingDoc = db.collection("roadworks_reports").document(firebaseId).get().get();
+                    if (existingDoc.exists() && existingDoc.getString("userId") != null) {
+                        data.put("userId", existingDoc.getString("userId"));
+                    }
+                } catch (Exception e) {
+                    System.err.println("Impossible de récupérer le userId existant: " + e.getMessage());
+                }
+            }
+
             // Ajouter les informations de travail si elles existent
             if (latestWork != null) {
                 Map<String, Object> workData = new java.util.HashMap<>();
@@ -391,7 +404,6 @@ public class SignalementService {
 
             // Si le signalement a un firebaseId, mettre à jour le document existant
             // Sinon, créer un nouveau document
-            String firebaseId = signalement.getFirebaseId();
             if (firebaseId != null && !firebaseId.isEmpty()) {
                 db.collection("roadworks_reports").document(firebaseId).set(data).get();
             } else {

@@ -13,3 +13,4 @@ public class LoginRequest {
     @Schema(description = "Mot de passe de l'utilisateur", example = "admin123", required = true)
     private String password;
 }
+        

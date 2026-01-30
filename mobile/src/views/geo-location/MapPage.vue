@@ -23,9 +23,10 @@
       </ion-fab>
 
       <ion-fab slot="fixed" horizontal="end" vertical="top">
-          <ion-fab-button @click="toggleFilter" :color="showOnlyMyReports ? 'primary' : 'medium'" title="Filtrer les signalements">
+        <div class="filter-chip" @click="toggleFilter" :class="{ active: showOnlyMyReports }">
           <ion-icon :icon="filterOutline"></ion-icon>
-        </ion-fab-button>
+          <span>{{ showOnlyMyReports ? 'Mes signalements' : 'Tous' }}</span>
+        </div>
       </ion-fab>
 
       <div id="map" style="height: 100%; width: 100%;"></div>
@@ -300,3 +301,34 @@ onMounted(async () => {
   displayReportsOnMap();
 });
 </script>
+
+<style scoped>
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.filter-chip:active {
+  transform: scale(0.95);
+}
+
+.filter-chip.active {
+  background: var(--ion-color-primary);
+  color: #fff;
+}
+
+.filter-chip ion-icon {
+  font-size: 18px;
+}
+</style>
