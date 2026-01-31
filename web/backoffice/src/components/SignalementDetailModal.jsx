@@ -4,6 +4,7 @@ import './SignalementDetailModal.css'
 export default function SignalementDetailModal({ signalement, onClose, onStatusChange, isManager, token }) {
   const [showStatusEdit, setShowStatusEdit] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState(signalement.status)
+  const [realEndDate, setRealEndDate] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showWorkForm, setShowWorkForm] = useState(false)
@@ -55,21 +56,28 @@ export default function SignalementDetailModal({ signalement, onClose, onStatusC
   const statusOptions = [
     { id: 1, label: 'Nouveau', value: 'nouveau' },
     { id: 2, label: 'En cours', value: 'en_cours' },
-    { id: 3, label: 'Résolu', value: 'resolu' },
-    { id: 4, label: 'Rejeté', value: 'rejete' },
+    { id: 3, label: 'Terminé', value: 'terminé' },
+    { id: 4, label: 'Annulé', value: 'annulé' },
   ]
 
   const statusColors = {
     nouveau: '#fdcb6e',
     en_cours: '#e17055',
-    resolu: '#27ae60',
-    rejete: '#d63031',
+    terminé: '#27ae60',
+    annulé: '#d63031',
   }
 
   const handleStatusUpdate = async () => {
     try {
       setLoading(true)
       setError('')
+
+      // Si le statut est "terminé", vérifier qu'une date est fournie
+      if (selectedStatus === 'terminé' && !realEndDate) {
+        setError('La date de fin réelle est obligatoire pour terminer')
+        setLoading(false)
+        return
+      }
 
       const response = await fetch(`/api/signalements/${signalement.id}/status`, {
         method: 'PUT',
@@ -79,6 +87,7 @@ export default function SignalementDetailModal({ signalement, onClose, onStatusC
         },
         body: JSON.stringify({
           status: selectedStatus,
+          realEndDate: selectedStatus === 'terminé' ? realEndDate : null,
         }),
       })
 
@@ -88,6 +97,7 @@ export default function SignalementDetailModal({ signalement, onClose, onStatusC
 
       onStatusChange(selectedStatus)
       setShowStatusEdit(false)
+      setRealEndDate('')
     } catch (err) {
       console.error('Erreur:', err)
       setError(err.message)
@@ -377,6 +387,18 @@ export default function SignalementDetailModal({ signalement, onClose, onStatusC
                     </option>
                   ))}
                 </select>
+                {selectedStatus === 'terminé' && (
+                  <div className="date-input-group">
+                    <label htmlFor="realEndDate">Date réelle de fin :</label>
+                    <input
+                      id="realEndDate"
+                      type="date"
+                      value={realEndDate}
+                      onChange={(e) => setRealEndDate(e.target.value)}
+                      className="date-input"
+                    />
+                  </div>
+                )}
                 <div className="edit-buttons">
                   <button
                     className="action-button success"

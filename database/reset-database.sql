@@ -114,7 +114,7 @@ CREATE INDEX idx_session_account ON session(id_account);
 
 -- Insérer les données de référence
 INSERT INTO role (libelle) VALUES ('user'), ('client'), ('manager'), ('admin');
-INSERT INTO status_signalement (libelle) VALUES ('nouveau'), ('en_cours'), ('resolu'), ('rejete');
+INSERT INTO status_signalement (libelle) VALUES ('nouveau'), ('en_cours'), ('terminé'), ('annulé');
 INSERT INTO type_problem (libelle, icone) VALUES
     ('Danger', '⚠️'),
     ('Travaux', '🚧'),
@@ -140,3 +140,5 @@ VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcg7b3XeKeUxWdeS86E36P4/TVm',
 INSERT INTO company (id, name, siret, address, phone, email) VALUES
   (1, 'BTP Antananarivo', '12345678900010', '1 Rue de l''Independance', '+26120202020', 'contact@btp-ants.com'),
   (2, 'Reseaux Urbains', '98765432100011', '12 Avenue de France', '+26120202021', 'info@reseaux-urbains.mg');
+
+

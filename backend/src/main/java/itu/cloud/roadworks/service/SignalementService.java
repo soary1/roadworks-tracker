@@ -75,7 +75,7 @@ public class SignalementService {
                 .build();
     }
 
-    public void updateStatus(Long signalementId, String statusName) throws Exception {
+    public void updateStatus(Long signalementId, String statusName, String realEndDate) throws Exception {
         Signalement signalement = repository.findById(signalementId)
                 .orElseThrow(() -> new Exception("Signalement non trouvé"));
 
@@ -90,8 +90,26 @@ public class SignalementService {
 
         statusRepository.save(newStatus);
 
+        // Si le statut est "terminé" et une date est fournie, mettre à jour la date réelle de fin du travail
+        if ("terminé".equals(statusName) && realEndDate != null && !realEndDate.trim().isEmpty()) {
+            // Trouver le travail associé à ce signalement
+            List<SignalementWork> works = workRepository.findBySignalementId(signalementId);
+            if (!works.isEmpty()) {
+                // Mettre à jour le dernier travail avec la date réelle
+                SignalementWork work = works.get(works.size() - 1);
+                work.setRealEndDate(java.time.LocalDate.parse(realEndDate));
+                workRepository.save(work);
+                System.out.println("Date réelle de fin mise à jour: " + realEndDate);
+            }
+        }
+
         // Notification WebSocket
         notificationService.notifyStatusUpdated(signalement, statusName);
+    }
+
+    // Méthode surchargée pour la rétro-compatibilité
+    public void updateStatus(Long signalementId, String statusName) throws Exception {
+        updateStatus(signalementId, statusName, null);
     }
 
     public int syncFromFirebase() throws Exception {
@@ -169,25 +187,34 @@ public class SignalementService {
                         Signalement saved = repository.save(signalement);
                         System.out.println("✓ Signalement sauvegardé avec ID: " + saved.getId());
 
+                        // Vérifier s'il y a des informations de travail dans le document Firebase
+                        Map<String, Object> workInfo = (Map<String, Object>) document.get("work");
+                        boolean hasWork = workInfo != null;
+                        System.out.println("✓ Document a du travail: " + hasWork);
+
                         // Mapper le statut Firestore vers les statuts de la base
-                        String statusToUse = "nouveau"; // défaut
-                        if (status != null && !status.isEmpty()) {
+                        // Si le document a du travail, le statut doit être "en_cours", sinon "nouveau"
+                        String statusToUse = hasWork ? "en_cours" : "nouveau";
+                        
+                        if (status != null && !status.isEmpty() && !hasWork) {
                             String firebaseStatus = status.toLowerCase().trim();
                             System.out.println("  Mapping du statut: '" + status + "' -> '" + firebaseStatus + "'");
-                            // Mapping Firestore → Base de données
+                            // Mapping Firestore → Base de données (seulement si pas de travail)
                             if (firebaseStatus.contains("danger")) {
                                 statusToUse = "nouveau"; // Les dangers importants sont nouveaux
                                 System.out.println("    Résultat: 'nouveau' (dangerous)");
                             } else if (firebaseStatus.contains("cours") || firebaseStatus.contains("en_cours") || firebaseStatus.contains("ongoing")) {
                                 statusToUse = "en_cours";
                                 System.out.println("    Résultat: 'en_cours'");
-                            } else if (firebaseStatus.contains("resolu") || firebaseStatus.contains("resolved") || firebaseStatus.contains("fixed")) {
-                                statusToUse = "resolu";
-                                System.out.println("    Résultat: 'resolu'");
-                            } else if (firebaseStatus.contains("rejete") || firebaseStatus.contains("rejected") || firebaseStatus.contains("reject")) {
-                                statusToUse = "rejete";
-                                System.out.println("    Résultat: 'rejete'");
+                            } else if (firebaseStatus.contains("resolu") || firebaseStatus.contains("resolved") || firebaseStatus.contains("fixed") || firebaseStatus.contains("termine") || firebaseStatus.contains("completed")) {
+                                statusToUse = "terminé";
+                                System.out.println("    Résultat: 'terminé'");
+                            } else if (firebaseStatus.contains("rejete") || firebaseStatus.contains("rejected") || firebaseStatus.contains("reject") || firebaseStatus.contains("annule") || firebaseStatus.contains("cancelled")) {
+                                statusToUse = "annulé";
+                                System.out.println("    Résultat: 'annulé'");
                             }
+                        } else if (hasWork) {
+                            System.out.println("  Document a du travail -> Statut forcé à 'en_cours'");
                         }
                         
                         System.out.println("Statut final à utiliser: " + statusToUse);
@@ -212,6 +239,96 @@ public class SignalementService {
                                     .build();
                             statusRepository.save(signalStatus);
                             System.out.println("✓ Status créé et sauvegardé");
+
+                            // Vérifier s'il y a des informations de travail dans le document Firebase (déjà extrait plus haut)
+                            if (workInfo != null) {
+                                System.out.println("✓ Informations de travail trouvées dans Firebase");
+                                try {
+                                    // Extraire les données du travail
+                                    String companyName = (String) workInfo.get("company");
+                                    Number surface = (Number) workInfo.get("surface");
+                                    Number price = (Number) workInfo.get("price");
+                                    String startDateStr = (String) workInfo.get("startDate");
+                                    String endDateStr = (String) workInfo.get("endDateEstimation");
+
+                                    System.out.println("  Données extraites:");
+                                    System.out.println("    Company: " + companyName);
+                                    System.out.println("    Surface: " + surface);
+                                    System.out.println("    Price: " + price);
+                                    System.out.println("    StartDate: " + startDateStr);
+                                    System.out.println("    EndDate: " + endDateStr);
+
+                                    // Si on a au moins une entreprise et un prix, créer le SignalementWork
+                                    if (companyName != null && !companyName.isEmpty()) {
+                                        // Chercher ou créer l'entreprise
+                                        Company company = companyRepository.findByName(companyName)
+                                                .orElseGet(() -> {
+                                                    System.out.println("  Création d'une nouvelle entreprise: " + companyName);
+                                                    Company newCompany = Company.builder()
+                                                            .name(companyName)
+                                                            .siret("UNKNOWN") // Valeur par défaut
+                                                            .address("") // Vide
+                                                            .build();
+                                                    return companyRepository.save(newCompany);
+                                                });
+
+                                        System.out.println("  Entreprise trouvée/créée: " + company.getName());
+
+                                        // Créer le SignalementWork
+                                        LocalDate startDate = null;
+                                        LocalDate endDate = null;
+
+                                        if (startDateStr != null && !startDateStr.isEmpty()) {
+                                            try {
+                                                startDate = LocalDate.parse(startDateStr);
+                                                System.out.println("  StartDate parsée: " + startDate);
+                                            } catch (Exception e) {
+                                                System.out.println("  ⚠️ Impossible de parser startDate: " + startDateStr);
+                                            }
+                                        }
+
+                                        if (endDateStr != null && !endDateStr.isEmpty()) {
+                                            try {
+                                                endDate = LocalDate.parse(endDateStr);
+                                                System.out.println("  EndDate parsée: " + endDate);
+                                            } catch (Exception e) {
+                                                System.out.println("  ⚠️ Impossible de parser endDate: " + endDateStr);
+                                            }
+                                        }
+
+                                        BigDecimal priceValue = null;
+                                        if (price != null) {
+                                            priceValue = BigDecimal.valueOf(price.doubleValue());
+                                            System.out.println("  Price convertie: " + priceValue);
+                                        }
+
+                                        // Mettre à jour la surface du signalement
+                                        if (surface != null) {
+                                            saved.setSurface(BigDecimal.valueOf(surface.doubleValue()));
+                                            repository.save(saved);
+                                            System.out.println("  Surface mise à jour: " + surface);
+                                        }
+
+                                        // Créer le SignalementWork
+                                        SignalementWork work = SignalementWork.builder()
+                                                .signalement(saved)
+                                                .company(company)
+                                                .startDate(startDate)
+                                                .endDateEstimation(endDate)
+                                                .price(priceValue)
+                                                .build();
+
+                                        workRepository.save(work);
+                                        System.out.println("✓ SignalementWork créé et sauvegardé pour le signalement: " + saved.getId());
+                                    }
+                                } catch (Exception e) {
+                                    System.err.println("  ❌ Erreur lors de la création du SignalementWork: " + e.getMessage());
+                                    e.printStackTrace();
+                                }
+                            } else {
+                                System.out.println("✓ Pas de travail associé dans Firebase");
+                            }
+
                             count++;
                             System.out.println("✓ Signalement importé avec succès! (Total: " + count + ")");
 
@@ -347,7 +464,7 @@ public class SignalementService {
                 throw new Exception("Firebase n'est pas initialisé");
             }
 
-            // Récupérer le dernier statut (nouveau, en_cours, resolu, rejete)
+            // Récupérer le dernier statut (nouveau, en_cours, terminé, annulé)
             SignalementStatus latestStatus = signalement.getStatuses().stream().findFirst().orElse(null);
             String reportStatus = latestStatus != null ? latestStatus.getStatusSignalement().getLibelle() : "nouveau";
 
@@ -355,7 +472,7 @@ public class SignalementService {
             String mobileReportStatus = "new";
             if ("en_cours".equals(reportStatus)) {
                 mobileReportStatus = "in_progress";
-            } else if ("resolu".equals(reportStatus)) {
+            } else if ("terminé".equals(reportStatus) || "resolu".equals(reportStatus)) {
                 mobileReportStatus = "completed";
             }
 

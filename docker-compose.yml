@@ -35,6 +35,10 @@ services:
       SPRING_DATASOURCE_PASSWORD: roadworks
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       FIREBASE_CREDENTIALS_PATH: /app/firebase-key.json
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     depends_on:
       postgres:
         condition: service_healthy

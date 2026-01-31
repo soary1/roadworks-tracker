@@ -137,6 +137,38 @@ hr {
   box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
 }
 
+.date-input-group {
+  margin-top: 10px;
+  margin-bottom: 12px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #27ae60;
+}
+
+.date-input-group label {
+  display: block;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.date-input {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #27ae60;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #229954;
+  box-shadow: 0 0 5px rgba(39, 174, 96, 0.5);
+}
+
 .edit-buttons {
   display: flex;
   gap: 10px;

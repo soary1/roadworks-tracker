@@ -73,8 +73,8 @@ public class SignalementApi {
                     Change le statut d'un signalement. Les statuts disponibles sont:
                     - nouveau: Signalement initial
                     - en_cours: Réparations en cours
-                    - resolu: Problème résolu
-                    - rejete: Signalement rejeté
+                    - terminé: Problème résolu
+                    - annulé: Signalement annulé
                     """
     )
     @ApiResponses(value = {
@@ -97,11 +97,12 @@ public class SignalementApi {
     public ResponseEntity<?> updateStatus(
             @Parameter(description = "ID du signalement", required = true)
             @PathVariable Long id,
-            @Parameter(description = "Nouveau statut (nouveau, en_cours, resolu, rejete)")
+            @Parameter(description = "Nouveau statut (nouveau, en_cours, terminé, annulé) et date réelle de fin optionnelle")
             @RequestBody Map<String, String> requestBody) {
         try {
             String status = requestBody.get("status");
-            service.updateStatus(id, status);
+            String realEndDate = requestBody.get("realEndDate");
+            service.updateStatus(id, status, realEndDate);
             String username = request.getHeader("X-Username");
             securityLogService.logUpdateStatus(id, null, username, getClientIp(), request.getHeader("User-Agent"));
             return ResponseEntity.ok().body(Map.of("message", "Statut mis à jour avec succès"));
@@ -267,7 +268,7 @@ public class SignalementApi {
     })
     @GetMapping("/status/{status}")
     public ResponseEntity<?> findByStatus(
-            @Parameter(description = "Statut à filtrer (nouveau, en_cours, resolu, rejete)", required = true)
+            @Parameter(description = "Statut à filtrer (nouveau, en_cours, terminé, annulé)", required = true)
             @PathVariable String status) {
         return ResponseEntity.ok().body(Map.of("message", "À implémenter"));
     }
