@@ -37,6 +37,10 @@ import '@ionic/vue/css/palettes/dark.system.css';
 
 /* Theme variables */
 import './theme/variables.css';
+
+/* Custom Design System */
+import './style.css';
+
 import { useAuthSessionStore } from './pinia/auth/session';
 
 const app = createApp(App);

@@ -3,12 +3,15 @@
 
     <ion-header>
       <ion-toolbar>
-        <ion-title>Explorer</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="handleSignOut" color="danger">
-            <ion-icon slot="icon-only" :icon="logOutOutline"></ion-icon>
-          </ion-button>
-        </ion-buttons>
+        <div style="display: flex; align-items: center; width: 100%; justify-content: space-between; padding: 0 var(--spacing-md);">
+          <div style="width: 40px; height: 40px; background: url('/logo-clean.png') center / contain no-repeat;"></div>
+          <ion-title style="flex-grow: 1; text-align: center; margin: 0;">Explorer</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="handleSignOut" color="danger">
+              <ion-icon slot="icon-only" :icon="logOutOutline"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+        </div>
       </ion-toolbar>
     </ion-header>
 

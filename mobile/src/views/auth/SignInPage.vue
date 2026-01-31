@@ -1,75 +1,93 @@
 <template>
 
-<ion-page>
+<ion-page class="auth-page">
   <!-- Header -->
-  <ion-header>
+  <ion-header style="display: none;">
     <ion-toolbar>
       <ion-title>Se Connecter</ion-title>
     </ion-toolbar>
   </ion-header>
 
   <!-- Content-->
-  <ion-content class="ion-padding">
-
-    <ion-text color="primary">
-      <h1>Heureux de vous revoir!</h1>
-    </ion-text>
-
-    <ion-text>
-      <p>Saisissez vos identifiants pour continuer</p>
-    </ion-text>
+  <ion-content class="ion-padding auth-container">
     
-    <!-- Email -->
-    <ion-item class="ion-margin-bottom" lines="none">
-      <ion-input 
-        type="email" 
-        label="Email *"
-        label-placement="stacked" 
-        placeholder="exemple@mail.fr"
-        v-model="email"
-        :readonly="awaitSignIn">
-      </ion-input>
-    </ion-item>
+    <div class="auth-header">
+      <div class="auth-logo"></div>
+      <ion-text>
+        <h1>Bienvenue!</h1>
+      </ion-text>
+      <p>Connectez-vous à votre compte Roadworks</p>
+    </div>
 
-    <!-- Pwd -->
-    <ion-item class="ion-margin-bottom" lines="none">
-      <ion-input 
-        type="password"
-        label="Mot de passe *"
-        label-placement="stacked" 
-        v-model="password"
-        :readonly="awaitSignIn">
-      </ion-input>
-    </ion-item>
+    <div class="auth-form">
+      <!-- Email -->
+      <div class="form-group">
+        <label class="form-label">Email *</label>
+        <ion-item lines="none" style="--background: transparent; --border-color: transparent;">
+          <ion-input 
+            type="email" 
+            class="form-input"
+            placeholder="exemple@mail.fr"
+            v-model="email"
+            :readonly="awaitSignIn">
+          </ion-input>
+        </ion-item>
+      </div>
 
-    <!-- Error card -->
-    <ion-card v-if="errors.displayErrorCard">
-      <ion-card-header>
-        <ion-card-title color="danger">{{ errors.errorCardTitle }}</ion-card-title>
-      </ion-card-header>
+      <!-- Pwd -->
+      <div class="form-group">
+        <label class="form-label">Mot de passe *</label>
+        <ion-item lines="none" style="--background: transparent; --border-color: transparent;">
+          <ion-input 
+            type="password"
+            class="form-input"
+            v-model="password"
+            :readonly="awaitSignIn">
+          </ion-input>
+        </ion-item>
+      </div>
 
-      <ion-card-content>
-        {{ errors.errorCardContent }}
-      </ion-card-content>
-    </ion-card>
+      <!-- Error card -->
+      <ion-card v-if="errors.displayErrorCard" style="margin: var(--spacing-lg) 0;">
+        <ion-card-header>
+          <ion-card-title color="danger">{{ errors.errorCardTitle }}</ion-card-title>
+        </ion-card-header>
 
-    <!-- Simple error message -->
-    <ion-text v-if="errors.simpleErrorMessage.length > 0"
-      color="danger">
-      <small v-html="errors.simpleErrorMessage"></small>
-    </ion-text>
+        <ion-card-content>
+          {{ errors.errorCardContent }}
+        </ion-card-content>
+      </ion-card>
 
-    <!-- Sign in button -->
-    <ion-button 
-      expand="block" 
-      @click="handleSignIn" 
-      :disabled="isSignInButtonDisabled">
+      <!-- Simple error message -->
+      <ion-text v-if="errors.simpleErrorMessage.length > 0"
+        color="danger" class="error-message">
+        <small v-html="errors.simpleErrorMessage"></small>
+      </ion-text>
 
-      <ion-text v-if="!awaitSignIn">Se Connecter</ion-text>
-      <ion-spinner v-else name="crescent"></ion-spinner>  
-      <ion-icon v-if="!awaitSignIn" :icon="logInOutline" slot="end"></ion-icon>
+      <!-- Sign in button -->
+      <ion-button 
+        expand="block" 
+        @click="handleSignIn" 
+        :disabled="isSignInButtonDisabled"
+        style="margin-top: var(--spacing-lg);">
 
-    </ion-button>
+        <ion-text v-if="!awaitSignIn">Se Connecter</ion-text>
+        <ion-spinner v-else name="crescent"></ion-spinner>  
+        <ion-icon v-if="!awaitSignIn" :icon="logInOutline" slot="end"></ion-icon>
+
+      </ion-button>
+
+      <!-- Sign up link -->
+      <div style="text-align: center; margin-top: var(--spacing-lg);">
+        <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.875rem;">
+          Pas encore de compte? 
+          <span style="color: #FF8C00; cursor: pointer; font-weight: 600;" @click="goToSignUp">
+            S'inscrire
+          </span>
+        </span>
+      </div>
+    </div>
+
   </ion-content>
 </ion-page>
 
@@ -207,6 +225,10 @@ const handleSignIn = async () => {
   } finally {
     awaitSignIn.value = false;
   }
+}
+
+const goToSignUp = () => {
+  router.push('/auth/signUp');
 }
 
 </script>

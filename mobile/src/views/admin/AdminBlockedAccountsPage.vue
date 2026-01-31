@@ -2,7 +2,11 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>🔐 Admin - Comptes Bloqués</ion-title>
+        <div style="display: flex; align-items: center; width: 100%; justify-content: space-between; padding: 0 var(--spacing-md);">
+          <div style="width: 40px; height: 40px; background: url('/logo-clean.png') center / contain no-repeat;"></div>
+          <ion-title style="flex-grow: 1; text-align: center; margin: 0;">🔐 Admin</ion-title>
+          <div style="width: 40px;"></div>
+        </div>
       </ion-toolbar>
     </ion-header>
 
