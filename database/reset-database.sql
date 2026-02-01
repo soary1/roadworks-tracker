@@ -56,8 +56,8 @@ CREATE TABLE company (
 
 CREATE TABLE config (
     id BIGSERIAL PRIMARY KEY,
-    key_config VARCHAR(100) NOT NULL UNIQUE,
-    value VARCHAR(255)
+    max_attempts INTEGER NOT NULL DEFAULT 5,
+    session_duration INTEGER NOT NULL DEFAULT 60
 );
 
 CREATE TABLE signalement (
@@ -90,11 +90,13 @@ CREATE TABLE signalement_work (
 );
 
 CREATE TABLE session (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_account BIGINT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-    token_value VARCHAR(500) NOT NULL,
+    token VARCHAR(500) NOT NULL UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMP NOT NULL
+    expires_at TIMESTAMP NOT NULL,
+    ip_address VARCHAR(64),
+    user_agent TEXT
 );
 
 CREATE TABLE account_status (
@@ -112,8 +114,8 @@ CREATE INDEX idx_signalement_status_signalement ON signalement_status(id_signale
 CREATE INDEX idx_signalement_work_signalement ON signalement_work(id_signalement);
 CREATE INDEX idx_session_account ON session(id_account);
 
--- Insérer les données de référence
-INSERT INTO role (libelle) VALUES ('user'), ('client'), ('manager'), ('admin');
+-- Insérer les données de référence (seulement utilisateur et manager)
+INSERT INTO role (libelle) VALUES ('utilisateur'), ('manager');
 INSERT INTO status_signalement (libelle) VALUES ('nouveau'), ('en_cours'), ('terminé'), ('annulé');
 INSERT INTO type_problem (libelle, icone) VALUES
     ('Danger', '⚠️'),
@@ -133,12 +135,15 @@ INSERT INTO type_problem (libelle, icone) VALUES
     ('other', '❓');
     
 
--- Insérer l'utilisateur admin par défaut
--- Mot de passe: admin123 (hashé avec bcrypt)
-INSERT INTO account (username, pwd, id_role, is_active) 
-VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcg7b3XeKeUxWdeS86E36P4/TVm', 4, TRUE);
+-- Insérer l'utilisateur admin par défaut (rôle manager = id 2)
+-- Mot de passe: admin123 (hashé avec SHA-256 + Base64)
+INSERT INTO account (username, pwd, id_role, is_active)
+VALUES ('admin', 'JAvlGPq9JyTdtvBO6x2llnRI1+gxwIyPqCKAn3THIKk=', 2, TRUE);
 INSERT INTO company (id, name, siret, address, phone, email) VALUES
   (1, 'BTP Antananarivo', '12345678900010', '1 Rue de l''Independance', '+26120202020', 'contact@btp-ants.com'),
   (2, 'Reseaux Urbains', '98765432100011', '12 Avenue de France', '+26120202021', 'info@reseaux-urbains.mg');
+
+-- Configuration par défaut
+INSERT INTO config (max_attempts, session_duration) VALUES (5, 60);
 
 

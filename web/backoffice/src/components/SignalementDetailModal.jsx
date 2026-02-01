@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import './SignalementDetailModal.css'
 
 export default function SignalementDetailModal({ signalement, onClose, onStatusChange, isManager, token }) {
   const [showStatusEdit, setShowStatusEdit] = useState(false)

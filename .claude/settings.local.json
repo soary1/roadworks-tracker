@@ -17,7 +17,8 @@
       "Bash(docker compose up:*)",
       "Bash(docker compose restart:*)",
       "Bash(docker compose:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(node -e:*)"
     ]
   }
 }

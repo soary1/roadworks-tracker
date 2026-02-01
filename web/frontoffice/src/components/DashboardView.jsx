@@ -9,7 +9,9 @@ export function DashboardView({ events }) {
       acc.nbPoints += 1
       acc.totalSurface += event.detail_problem.surface_m2
       acc.totalBudget += event.detail_problem.budget
-      if (state === 'termine') {
+      // Vérifier "termine" ou "terminé" (avec ou sans accent)
+      const stateLower = state?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      if (stateLower === 'termine') {
         acc.completed += 1
       }
       return acc

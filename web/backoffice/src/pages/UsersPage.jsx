@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import './UsersPage.css'
 
 export default function UsersPage() {
   const navigate = useNavigate()

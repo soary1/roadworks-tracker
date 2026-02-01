@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import PropTypes from 'prop-types'
-import './NotificationToast.css'
 
 const getNotificationIcon = (type) => {
   switch (type) {

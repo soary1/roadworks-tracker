@@ -5,7 +5,6 @@ import { iconByType } from '../mapIcons'
 import SignalementDetailModal from '../components/SignalementDetailModal'
 import NotificationToast from '../components/NotificationToast'
 import { useNotifications } from '../hooks/useNotifications'
-import './DashboardPage.css'
 
 // Mapping des types de problèmes vers les types d'icônes
 const mapProblemTypeToIcon = (typeName) => {
