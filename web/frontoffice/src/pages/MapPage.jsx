@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { MapView } from '../components/MapView'
 import { DashboardView } from '../components/DashboardView'
+import logo from '../assets/logo.png'
+import './MapPage.css'
 
 const locationCoordinates = {
   Analakely: { lat: -18.913, lon: 47.52 },
@@ -103,11 +105,20 @@ export function MapPage() {
 
   const renderView = () => {
     if (loading) {
-      return <p>Chargement des signalements…</p>
+      return (
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <p>Chargement des signalements…</p>
+        </div>
+      )
     }
 
     if (error) {
-      return <p className="error">{error}</p>
+      return (
+        <div className="error-container">
+          <div className="error">{error}</div>
+        </div>
+      )
     }
 
     if (activeView === 'map') {
@@ -120,7 +131,7 @@ export function MapPage() {
 
     return (
       <section className="list-view">
-        <h2>Liste detaillee</h2>
+        <h2>Liste détaillée</h2>
         <ul>
           {events.map((event) => (
             <li key={event.id}>
@@ -129,7 +140,8 @@ export function MapPage() {
               </strong>
               <p>{event.detail_problem.description}</p>
               <small>
-                Etat: {event.detail_problem.etat} · Budget: {event.detail_problem.budget.toLocaleString()} Ar
+                <span><strong>Etat:</strong> {event.detail_problem.etat}</span>
+                <span><strong>Budget:</strong> {event.detail_problem.budget.toLocaleString()} Ar</span>
               </small>
             </li>
           ))}
@@ -142,8 +154,11 @@ export function MapPage() {
     <div className="app-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">Roadworks Tracker</p>
-          <h1>Suivi des incidents et travaux</h1>
+          <img src={logo} alt="Roadworks Tracker" className="app-logo" />
+          <div>
+            <p className="eyebrow">Roadworks Tracker</p>
+            <h1>Suivi des incidents et travaux</h1>
+          </div>
         </div>
         <nav className="view-nav">
           {views.map((view) => (

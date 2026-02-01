@@ -157,12 +157,14 @@ public class SignalementService {
                     Double lat = document.getDouble("lat");
                     Double lng = document.getDouble("lng");
                     String status = document.getString("status"); // Type de problème: pothole, accident, etc.
+                    String reportStatus = document.getString("reportStatus"); // État du signalement: new, in_progress, completed
 
                     System.out.println("Valeurs trouvées:");
                     System.out.println("  description: " + description);
                     System.out.println("  lat: " + lat);
                     System.out.println("  lng: " + lng);
                     System.out.println("  status (type): " + status);
+                    System.out.println("  reportStatus (état): " + reportStatus);
                     System.out.println("Tous les champs du document: " + document.getData());
 
                     if (lat != null && lng != null) {
@@ -193,30 +195,32 @@ public class SignalementService {
                         System.out.println("✓ Document a du travail: " + hasWork);
 
                         // Mapper le statut Firestore vers les statuts de la base
-                        // Si le document a du travail, le statut doit être "en_cours", sinon "nouveau"
-                        String statusToUse = hasWork ? "en_cours" : "nouveau";
-                        
-                        if (status != null && !status.isEmpty() && !hasWork) {
-                            String firebaseStatus = status.toLowerCase().trim();
-                            System.out.println("  Mapping du statut: '" + status + "' -> '" + firebaseStatus + "'");
-                            // Mapping Firestore → Base de données (seulement si pas de travail)
-                            if (firebaseStatus.contains("danger")) {
-                                statusToUse = "nouveau"; // Les dangers importants sont nouveaux
-                                System.out.println("    Résultat: 'nouveau' (dangerous)");
-                            } else if (firebaseStatus.contains("cours") || firebaseStatus.contains("en_cours") || firebaseStatus.contains("ongoing")) {
+                        // Si reportStatus existe, l'utiliser, sinon "nouveau"
+                        String statusToUse = "nouveau";
+
+                        if (reportStatus != null && !reportStatus.isEmpty()) {
+                            String firebaseReportStatus = reportStatus.toLowerCase().trim();
+                            System.out.println("  Mapping du reportStatus: '" + reportStatus + "' -> '" + firebaseReportStatus + "'");
+
+                            // Mapping reportStatus Firebase → Base de données
+                            if (firebaseReportStatus.equals("in_progress") || firebaseReportStatus.equals("en_cours")) {
                                 statusToUse = "en_cours";
                                 System.out.println("    Résultat: 'en_cours'");
-                            } else if (firebaseStatus.contains("resolu") || firebaseStatus.contains("resolved") || firebaseStatus.contains("fixed") || firebaseStatus.contains("termine") || firebaseStatus.contains("completed")) {
+                            } else if (firebaseReportStatus.equals("completed") || firebaseReportStatus.equals("terminé") || firebaseReportStatus.equals("resolved")) {
                                 statusToUse = "terminé";
                                 System.out.println("    Résultat: 'terminé'");
-                            } else if (firebaseStatus.contains("rejete") || firebaseStatus.contains("rejected") || firebaseStatus.contains("reject") || firebaseStatus.contains("annule") || firebaseStatus.contains("cancelled")) {
+                            } else if (firebaseReportStatus.equals("cancelled") || firebaseReportStatus.equals("annulé") || firebaseReportStatus.equals("rejected")) {
                                 statusToUse = "annulé";
                                 System.out.println("    Résultat: 'annulé'");
+                            } else {
+                                // new ou autre valeur → nouveau
+                                statusToUse = "nouveau";
+                                System.out.println("    Résultat: 'nouveau' (default)");
                             }
-                        } else if (hasWork) {
-                            System.out.println("  Document a du travail -> Statut forcé à 'en_cours'");
+                        } else {
+                            System.out.println("  reportStatus absent -> Statut par défaut: 'nouveau'");
                         }
-                        
+
                         System.out.println("Statut final à utiliser: " + statusToUse);
 
                         // Convertir en final pour la lambda

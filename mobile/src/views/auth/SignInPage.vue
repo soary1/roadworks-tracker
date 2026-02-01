@@ -202,16 +202,16 @@ const handleSignIn = async () => {
         case 'auth/user-not-found':     
         case 'auth/wrong-password':
         case 'auth/invalid-email':
-          // Afficher le nombre de tentatives restantes
-          const remainingAttempts = 3 - result.failedAttempts;
+          const nbr_tentative = 3;
+          const essai_restant = nbr_tentative - result.failedAttempts;
           if (result.isLocked) {
             errors.value.errorCardTitle = 'Compte bloqué';
             errors.value.errorCardContent = 
               'Suite à trop de tentatives échouées, ce compte a été bloqué. Veuillez contacter l\'administrateur pour le débloquer.';
             errors.value.displayErrorCard = true;
-          } else if (remainingAttempts > 0) {
+          } else if (essai_restant > 0) {
             errors.value.simpleErrorMessage = 
-              `Identifiants incorrects.<br><strong>${remainingAttempts} tentative(s) restante(s)</strong> avant blocage du compte.`;
+              `Identifiants incorrects.<br><strong>${essai_restant} tentative(s) restante(s)</strong> avant blocage du compte.`;
           } else {
             errors.value.simpleErrorMessage = 
               "Veuillez vérifier votre e-mail et votre mot de passe.";
