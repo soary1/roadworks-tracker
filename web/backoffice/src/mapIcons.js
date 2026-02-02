@@ -1,11 +1,11 @@
 import L from 'leaflet'
 
-const buildSvgIcon = (color, emoji) => {
+const buildSvgIcon = (color, emoji, opacity = 1) => {
   const size = 44
   const pointerHeight = 12
   const totalHeight = size + pointerHeight
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${totalHeight}" viewBox="0 0 ${size} ${totalHeight}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${totalHeight}" viewBox="0 0 ${size} ${totalHeight}" opacity="${opacity}">
       <path d="M22 0C11 0 3 8 3 18c0 10 19 26 19 26s19-16 19-26C41 8 33 0 22 0z" fill="${color}" stroke="#fff" stroke-width="2"/>
       <text x="50%" y="24" text-anchor="middle" alignment-baseline="middle" font-size="20" fill="#fff">${emoji}</text>
       <path d="M22 ${size} L15 ${size + pointerHeight} L29 ${size} Z" fill="${color}" stroke="#fff" stroke-width="2"/>
@@ -17,6 +17,39 @@ const buildSvgIcon = (color, emoji) => {
     iconAnchor: [size / 2, totalHeight],
     popupAnchor: [0, -totalHeight + 12],
     className: 'custom-pin',
+  })
+}
+
+// Fonction pour créer une icône non synchronisée (couleur cyan/turquoise avec bordure pointillée)
+const buildUnsyncedSvgIcon = (emoji) => {
+  const size = 44
+  const pointerHeight = 12
+  const totalHeight = size + pointerHeight
+  const color = '#17a2b8' // Couleur cyan/turquoise pour non synchronisé
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${totalHeight}" viewBox="0 0 ${size} ${totalHeight}">
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      <path d="M22 0C11 0 3 8 3 18c0 10 19 26 19 26s19-16 19-26C41 8 33 0 22 0z" fill="${color}" stroke="#fff" stroke-width="3" stroke-dasharray="4,2" filter="url(#glow)"/>
+      <text x="50%" y="24" text-anchor="middle" alignment-baseline="middle" font-size="20" fill="#fff">${emoji}</text>
+      <path d="M22 ${size} L15 ${size + pointerHeight} L29 ${size} Z" fill="${color}" stroke="#fff" stroke-width="2"/>
+      <circle cx="38" cy="8" r="6" fill="#ffc107" stroke="#fff" stroke-width="1"/>
+      <text x="38" y="11" text-anchor="middle" font-size="10" fill="#000" font-weight="bold">!</text>
+    </svg>
+  `
+  return new L.Icon({
+    iconUrl: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    iconSize: [size, totalHeight],
+    iconAnchor: [size / 2, totalHeight],
+    popupAnchor: [0, -totalHeight + 12],
+    className: 'custom-pin unsynced',
   })
 }
 
@@ -36,4 +69,21 @@ export const iconByType = {
   debris: buildSvgIcon('#A9A9A9', '🪨'),
   poor_surface: buildSvgIcon('#FFA500', '⚠️'),
   other: buildSvgIcon('#808080', '❓'),
+}
+
+// Icônes pour les signalements non synchronisés (couleur différente - cyan/turquoise)
+export const unsyncedIconByType = {
+  danger: buildUnsyncedSvgIcon('⚠️'),
+  works: buildUnsyncedSvgIcon('🚧'),
+  warning: buildUnsyncedSvgIcon('⚡'),
+  water: buildUnsyncedSvgIcon('💧'),
+  ok: buildUnsyncedSvgIcon('✅'),
+  accident: buildUnsyncedSvgIcon('🚨'),
+  pothole: buildUnsyncedSvgIcon('🕳️'),
+  blocked_road: buildUnsyncedSvgIcon('🚧'),
+  construction: buildUnsyncedSvgIcon('🏗️'),
+  flooding: buildUnsyncedSvgIcon('💧'),
+  debris: buildUnsyncedSvgIcon('🪨'),
+  poor_surface: buildUnsyncedSvgIcon('⚠️'),
+  other: buildUnsyncedSvgIcon('❓'),
 }

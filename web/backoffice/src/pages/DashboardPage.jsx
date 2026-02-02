@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import { useNavigate } from 'react-router-dom'
-import { iconByType } from '../mapIcons'
+import { iconByType, unsyncedIconByType } from '../mapIcons'
 import SignalementDetailModal from '../components/SignalementDetailModal'
 import NotificationToast from '../components/NotificationToast'
 import { useNotifications } from '../hooks/useNotifications'
@@ -33,12 +33,15 @@ export default function DashboardPage() {
   const username = localStorage.getItem('username')
   const token = localStorage.getItem('token')
   const [events, setEvents] = useState([])
+  const [unsyncedEvents, setUnsyncedEvents] = useState([]) // Signalements Firebase non synchronisés
+  const [totalUnsyncedCount, setTotalUnsyncedCount] = useState(0) // Total incluant ceux sans coordonnées
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState('')
   const [showNotifDropdown, setShowNotifDropdown] = useState(false)
+  const [showUnsyncedLegend, setShowUnsyncedLegend] = useState(true) // Pour afficher/masquer la légende
 
   const fetchSignalements = useCallback(async () => {
     try {
@@ -70,6 +73,7 @@ export default function DashboardPage() {
           status: signalement.detail?.etat || 'nouveau',
           date: signalement.detail?.dateProblem,
           work: signalement.detail?.work,
+          isSynced: true, // Les signalements de la BDD sont synchronisés
         }
       })
 
@@ -83,12 +87,70 @@ export default function DashboardPage() {
     }
   }, [token])
 
+  // Fonction pour récupérer les signalements Firebase non synchronisés (seulement pour les managers)
+  const fetchUnsyncedFirebaseSignalements = useCallback(async () => {
+    console.log('fetchUnsyncedFirebaseSignalements called, role:', role, 'token:', token ? 'present' : 'absent')
+    
+    // Seul le manager peut voir les signalements non synchronisés
+    if (role !== 'manager') {
+      console.log('Non manager (role=' + role + '), skip fetch unsynced')
+      return
+    }
+    if (!token) {
+      console.log('No token, skip fetch unsynced')
+      return
+    }
+
+    try {
+      console.log('Fetching unsynced Firebase signalements...')
+      const response = await fetch('/api/signalements/firebase/unsynced', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        console.warn('Impossible de récupérer les signalements Firebase non synchronisés')
+        return
+      }
+
+      const data = await response.json()
+      console.log('Données Firebase reçues:', data)
+
+      // Transformer les données Firebase - filtrer ceux avec coordonnées valides
+      const transformedUnsyncedEvents = data
+        .filter(signalement => signalement.lat !== undefined && signalement.lng !== undefined)
+        .map(signalement => ({
+          id: `firebase_${signalement.firebaseId}`,
+          firebaseId: signalement.firebaseId,
+          type: mapProblemTypeToIcon(signalement.typeProblem),
+          title: signalement.typeProblem || 'Signalement',
+          lat: parseFloat(signalement.lat),
+          lon: parseFloat(signalement.lng),
+          description: signalement.description || 'Aucune description',
+          status: signalement.reportStatus || 'new',
+          isSynced: false,
+        }))
+
+      console.log('=== UNSYNCED EVENTS ===', transformedUnsyncedEvents.length, transformedUnsyncedEvents)
+      setTotalUnsyncedCount(data.length)
+      setUnsyncedEvents(transformedUnsyncedEvents)
+    } catch (err) {
+      console.warn('Erreur lors du chargement des signalements Firebase non synchronisés:', err)
+      setUnsyncedEvents([])
+      setTotalUnsyncedCount(0)
+    }
+  }, [token, role])
+
   // Hook pour les notifications WebSocket
   const { connected, notifications, clearNotification, clearAll } = useNotifications()
 
   useEffect(() => {
     fetchSignalements()
-  }, [fetchSignalements])
+    fetchUnsyncedFirebaseSignalements() // Récupérer aussi les signalements Firebase non synchronisés
+  }, [fetchSignalements, fetchUnsyncedFirebaseSignalements])
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -133,10 +195,9 @@ export default function DashboardPage() {
       const data = await response.json()
       setSyncMessage(`✓ ${data.imported} signalements importés depuis Firebase`)
 
-      // Rafraîchir la liste des signalements
-      setTimeout(() => {
-        window.location.reload()
-      }, 2000)
+      // Rafraîchir la liste des signalements et les non synchronisés
+      await fetchSignalements()
+      await fetchUnsyncedFirebaseSignalements()
     } catch (err) {
       console.error('Erreur:', err)
       setSyncMessage(`✗ Erreur: ${err.message}`)
@@ -238,12 +299,40 @@ export default function DashboardPage() {
         {!loading && (
           <>
             <div className="info-bar">
-              📍 {events.length} signalement{events.length > 1 ? 's' : ''} affichés
+              📍 {events.length} signalement{events.length > 1 ? 's' : ''} synchronisé{events.length > 1 ? 's' : ''}
+              {role === 'manager' && totalUnsyncedCount > 0 && (
+                <span className="unsynced-count">
+                  {' '}| 🔶 {totalUnsyncedCount} en attente de synchronisation
+                  {unsyncedEvents.length < totalUnsyncedCount && (
+                    <span className="coords-warning"> ({totalUnsyncedCount - unsyncedEvents.length} sans coordonnées)</span>
+                  )}
+                </span>
+              )}
             </div>
+            
+            {/* Légende pour les managers */}
+            {role === 'manager' && totalUnsyncedCount > 0 && showUnsyncedLegend && (
+              <div className="map-legend">
+                <div className="legend-header">
+                  <span>📋 Légende</span>
+                  <button onClick={() => setShowUnsyncedLegend(false)} className="legend-close">×</button>
+                </div>
+                <div className="legend-item">
+                  <span className="legend-icon synced">●</span>
+                  <span>Signalements synchronisés</span>
+                </div>
+                <div className="legend-item">
+                  <span className="legend-icon unsynced">●</span>
+                  <span>Firebase non synchronisés (cliquez pour synchroniser)</span>
+                </div>
+              </div>
+            )}
+            
             <div className="map-root">
-              <MapContainer center={[-18.91, 47.52]} zoom={13} className="map-inner" scrollWheelZoom>
+              <MapContainer center={[-18.95, 47.52]} zoom={10} className="map-inner" scrollWheelZoom>
                 <TileLayer url="http://localhost:8089/styles/basic-preview/512/{z}/{x}/{y}.png" attribution="© OpenStreetMap contributors" />
 
+                {/* Signalements synchronisés */}
                 {events.map((event) => (
                   <Marker
                     key={event.id}
@@ -270,6 +359,50 @@ export default function DashboardPage() {
                           }}
                         >
                           Voir détails
+                        </button>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+
+                {/* Signalements Firebase non synchronisés (visibles pour tous) */}
+                {unsyncedEvents.map((event) => (
+                  <Marker
+                    key={event.id}
+                    position={[event.lat, event.lon]}
+                    icon={iconByType[event.type] || iconByType.other}
+                  >
+                    <Popup>
+                      <div style={{ cursor: 'pointer' }}>
+                        <div style={{ 
+                          backgroundColor: '#17a2b8', 
+                          color: 'white', 
+                          padding: '4px 8px', 
+                          borderRadius: '4px', 
+                          marginBottom: '8px',
+                          fontSize: '12px'
+                        }}>
+                          🔶 Non synchronisé
+                        </div>
+                        <strong>{event.title}</strong>
+                        <p>{event.description}</p>
+                        <small>Firebase ID: {event.firebaseId}</small>
+                        <br />
+                        <button
+                          onClick={handleSyncFirebase}
+                          disabled={syncing}
+                          style={{
+                            padding: '6px 12px',
+                            backgroundColor: '#28a745',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: syncing ? 'not-allowed' : 'pointer',
+                            marginTop: '8px',
+                            opacity: syncing ? 0.7 : 1,
+                          }}
+                        >
+                          {syncing ? '⏳ Synchronisation...' : '🔄 Synchroniser maintenant'}
                         </button>
                       </div>
                     </Popup>

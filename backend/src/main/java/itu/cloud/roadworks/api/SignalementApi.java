@@ -272,4 +272,37 @@ public class SignalementApi {
             @PathVariable String status) {
         return ResponseEntity.ok().body(Map.of("message", "À implémenter"));
     }
+
+    @Operation(
+            summary = "Récupérer les signalements Firebase non synchronisés",
+            description = """
+                    Récupère la liste des signalements présents dans Firebase mais pas encore importés
+                    dans la base de données locale. Utile pour les managers qui veulent voir tous
+                    les signalements, y compris ceux en attente de synchronisation.
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Liste des signalements non synchronisés récupérée avec succès",
+                    content = @Content(mediaType = "application/json")
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erreur lors de la récupération des données Firebase"
+            )
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @GetMapping("/firebase/unsynced")
+    public ResponseEntity<?> getUnsyncedFirebaseSignalements() {
+        try {
+            var unsyncedSignalements = service.getUnsyncedFirebaseSignalements();
+            String username = request.getHeader("X-Username");
+            securityLogService.logViewAllSignalements(null, username, getClientIp(), request.getHeader("User-Agent"));
+            return ResponseEntity.ok().body(unsyncedSignalements);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Erreur lors de la récupération des signalements Firebase: " + e.getMessage()));
+        }
+    }
 }

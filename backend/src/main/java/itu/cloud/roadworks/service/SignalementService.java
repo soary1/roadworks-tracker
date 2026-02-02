@@ -154,8 +154,15 @@ public class SignalementService {
                     }
 
                     String description = document.getString("description");
+                    // Support des deux formats de coordonnées: lat/lng ou latitude/longitude
                     Double lat = document.getDouble("lat");
+                    if (lat == null) {
+                        lat = document.getDouble("latitude");
+                    }
                     Double lng = document.getDouble("lng");
+                    if (lng == null) {
+                        lng = document.getDouble("longitude");
+                    }
                     String status = document.getString("status"); // Type de problème: pothole, accident, etc.
                     String reportStatus = document.getString("reportStatus"); // État du signalement: new, in_progress, completed
 
@@ -536,6 +543,113 @@ public class SignalementService {
 
         } catch (Exception e) {
             System.err.println("Erreur dans syncToFirebase: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    /**
+     * Récupère les signalements Firebase qui ne sont pas encore synchronisés dans la base de données locale.
+     * Utile pour le manager afin de voir tous les signalements, même ceux non encore importés.
+     */
+    public List<Map<String, Object>> getUnsyncedFirebaseSignalements() throws Exception {
+        System.out.println("=== DEBUT getUnsyncedFirebaseSignalements ===");
+        
+        Firestore db = firebaseService.getFirestore();
+        if (db == null) {
+            System.out.println("Firebase n'est pas initialisé - retour liste vide");
+            return List.of();
+        }
+
+        try {
+            ApiFuture<QuerySnapshot> query = db.collection("roadworks_reports").get();
+            QuerySnapshot querySnapshot = query.get(30, java.util.concurrent.TimeUnit.SECONDS);
+            System.out.println("Nombre de documents Firebase trouvés: " + querySnapshot.getDocuments().size());
+
+            List<Map<String, Object>> unsyncedSignalements = new java.util.ArrayList<>();
+
+            for (var document : querySnapshot.getDocuments()) {
+                String firebaseId = document.getId();
+                
+                // Vérifier si ce signalement a déjà été synchronisé
+                if (repository.findByFirebaseId(firebaseId).isPresent()) {
+                    // Déjà synchronisé, on l'ignore
+                    continue;
+                }
+
+                // Ce signalement n'est pas synchronisé, on le récupère
+                // DEBUG: Afficher tous les champs du document pour comprendre la structure
+                System.out.println("=== Document Firebase " + firebaseId + " ===");
+                System.out.println("Tous les champs: " + document.getData());
+
+                String description = document.getString("description");
+                // Support de plusieurs formats de coordonnées
+                Double lat = document.getDouble("lat");
+                if (lat == null) {
+                    lat = document.getDouble("latitude");
+                }
+                // Essayer aussi avec "location" qui pourrait être un objet
+                if (lat == null && document.get("location") != null) {
+                    try {
+                        Map<String, Object> location = (Map<String, Object>) document.get("location");
+                        if (location != null) {
+                            Object latObj = location.get("lat");
+                            if (latObj == null) latObj = location.get("latitude");
+                            if (latObj instanceof Number) {
+                                lat = ((Number) latObj).doubleValue();
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.out.println("  location n'est pas un objet Map");
+                    }
+                }
+
+                Double lng = document.getDouble("lng");
+                if (lng == null) {
+                    lng = document.getDouble("longitude");
+                }
+                if (lng == null && document.get("location") != null) {
+                    try {
+                        Map<String, Object> location = (Map<String, Object>) document.get("location");
+                        if (location != null) {
+                            Object lngObj = location.get("lng");
+                            if (lngObj == null) lngObj = location.get("longitude");
+                            if (lngObj == null) lngObj = location.get("lon");
+                            if (lngObj instanceof Number) {
+                                lng = ((Number) lngObj).doubleValue();
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.out.println("  location n'est pas un objet Map");
+                    }
+                }
+
+                String status = document.getString("status"); // Type de problème
+                String reportStatus = document.getString("reportStatus"); // État du signalement
+                Object timestamp = document.get("timestamp");
+
+                System.out.println("  Coordonnées extraites - lat: " + lat + ", lng: " + lng);
+
+                if (lat != null && lng != null) {
+                    Map<String, Object> signalementData = new java.util.HashMap<>();
+                    signalementData.put("firebaseId", firebaseId);
+                    signalementData.put("description", description != null ? description : "Aucune description");
+                    signalementData.put("lat", lat);
+                    signalementData.put("lng", lng);
+                    signalementData.put("typeProblem", status != null ? status : "other");
+                    signalementData.put("reportStatus", reportStatus != null ? reportStatus : "new");
+                    signalementData.put("timestamp", timestamp);
+                    signalementData.put("isSynced", false); // Marqueur pour le frontend
+                    
+                    unsyncedSignalements.add(signalementData);
+                }
+            }
+
+            System.out.println("Nombre de signalements non synchronisés: " + unsyncedSignalements.size());
+            return unsyncedSignalements;
+
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la récupération des signalements Firebase non synchronisés: " + e.getMessage());
             e.printStackTrace();
             throw e;
         }
