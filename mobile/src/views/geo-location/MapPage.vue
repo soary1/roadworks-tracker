@@ -112,7 +112,7 @@ const mountMap = async () => {
         return;
       }
 
-      map.setView([e.latlng.lat, e.latlng.lng], 17);
+      map?.setView([e.latlng.lat, e.latlng.lng], 17);
 
       selectedCoords.value = {
         lat: e.latlng.lat,

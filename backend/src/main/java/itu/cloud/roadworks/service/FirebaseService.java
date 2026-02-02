@@ -106,6 +106,24 @@ public class FirebaseService {
     }
 
     /**
+     * Met à jour le mot de passe d'un utilisateur Firebase
+     * @param firebaseUid Le UID Firebase
+     * @param newPassword Le nouveau mot de passe
+     */
+    public void updateFirebaseUserPassword(String firebaseUid, String newPassword) {
+        try {
+            firebaseAuth.updateUser(
+                    new UserRecord.UpdateRequest(firebaseUid)
+                            .setPassword(newPassword)
+            );
+            log.info("Mot de passe mis à jour pour l'utilisateur Firebase. UID: {}", firebaseUid);
+        } catch (FirebaseAuthException e) {
+            log.error("Erreur lors de la mise à jour du mot de passe Firebase: {}", e.getMessage());
+            throw new RuntimeException("Impossible de mettre à jour le mot de passe Firebase: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Récupère l'instance Firestore
      * @return L'instance Firestore
      */

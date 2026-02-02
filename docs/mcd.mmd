@@ -1,0 +1,119 @@
+erDiagram
+    ROLE {
+        bigint id PK
+        varchar libelle UK
+    }
+
+    STATUS_ACCOUNT {
+        bigint id PK
+        varchar libelle UK
+    }
+
+    STATUS_SIGNALEMENT {
+        bigint id PK
+        varchar libelle UK
+    }
+
+    CONFIG {
+        bigint id PK
+        int max_attempts
+        int session_duration
+    }
+
+    TYPE_PROBLEM {
+        bigint id PK
+        text icone
+        varchar libelle
+    }
+
+    COMPANY {
+        bigint id PK
+        varchar name
+        varchar siret UK
+        varchar address
+        varchar phone
+        varchar email
+        timestamp created_at
+    }
+
+    ACCOUNT {
+        bigint id PK
+        varchar username UK
+        varchar pwd
+        bigint id_role FK
+        timestamp created_at
+        timestamp last_login
+        boolean is_active
+        boolean is_locked
+        int attempts
+        timestamp last_failed_login
+    }
+
+    ACCOUNT_STATUS {
+        bigint id PK
+        bigint id_account FK
+        bigint id_status_account FK
+        timestamp updated_at
+    }
+
+    SESSION {
+        uuid id PK
+        bigint id_account FK
+        text token UK
+        timestamp created_at
+        timestamp expires_at
+        varchar ip_address
+        text user_agent
+    }
+
+    SIGNALEMENT {
+        bigint id PK
+        bigint id_account FK
+        text descriptions
+        timestamp created_at
+        varchar location
+        text picture
+        numeric surface
+        bigint id_type_problem FK
+        varchar firebase_id UK
+    }
+
+    SIGNALEMENT_STATUS {
+        bigint id PK
+        bigint id_signalement FK
+        bigint id_status_signalement FK
+        timestamp updated_at
+    }
+
+    SIGNALEMENT_WORK {
+        bigint id PK
+        bigint id_signalement FK
+        bigint id_company FK
+        date start_date
+        date end_date_estimation
+        numeric price
+        date real_end_date
+    }
+
+    SECURITY_LOG {
+        bigint id PK
+        varchar action
+        bigint id_account FK
+        varchar username
+        varchar ip_address
+        text user_agent
+        timestamp created_at
+        text details
+    }
+
+    ROLE ||--o{ ACCOUNT : "possede"
+    ACCOUNT ||--o{ SESSION : "a"
+    ACCOUNT ||--o{ ACCOUNT_STATUS : "historique"
+    ACCOUNT ||--o{ SIGNALEMENT : "cree"
+    ACCOUNT ||--o{ SECURITY_LOG : "genere"
+    STATUS_ACCOUNT ||--o{ ACCOUNT_STATUS : "definit"
+    TYPE_PROBLEM ||--o{ SIGNALEMENT : "categorise"
+    SIGNALEMENT ||--o{ SIGNALEMENT_STATUS : "historique"
+    SIGNALEMENT ||--o| SIGNALEMENT_WORK : "travaux"
+    STATUS_SIGNALEMENT ||--o{ SIGNALEMENT_STATUS : "definit"
+    COMPANY ||--o{ SIGNALEMENT_WORK : "effectue"

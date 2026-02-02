@@ -6,7 +6,7 @@ export function MapView({ events }) {
   return (
     <MapContainer center={[-18.91, 47.52]} zoom={13} className="map-inner" scrollWheelZoom>
       <TileLayer
-        url="http://localhost:8081/styles/basic-preview/512/{z}/{x}/{y}.png"
+        url="http://localhost:8089/styles/basic-preview/512/{z}/{x}/{y}.png"
         attribution="© OpenStreetMap contributors"
       />
 

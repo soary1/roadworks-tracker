@@ -36,7 +36,7 @@ public class AuthApi {
             summary = "Connexion utilisateur",
             description = "Authentifie un utilisateur avec son nom d'utilisateur et mot de passe. " +
                     "Retourne un token de session en cas de succès. " +
-                    "Le compte est bloqué après 5 tentatives échouées."
+                    "Le compte est bloqué après 3 tentatives échouées (paramétrable)."
     )
     @ApiResponses(value = {
             @ApiResponse(
@@ -236,12 +236,15 @@ public class AuthApi {
             summary = "Mettre à jour un utilisateur",
             description = """
                     Met à jour les informations d'un utilisateur existant (rôle, mot de passe).
+                    - role: nouveau rôle (manager, utilisateur, visiteur)
+                    - password: nouveau mot de passe (optionnel, laisser vide pour ne pas modifier)
                     """
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "Utilisateur mis à jour avec succès"
+                    description = "Utilisateur mis à jour avec succès",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))
             ),
             @ApiResponse(
                     responseCode = "401",
@@ -254,13 +257,16 @@ public class AuthApi {
     })
     @SecurityRequirement(name = "bearerAuth")
     @PutMapping("/users/{userId}")
-    public ResponseEntity<?> updateUser(
-            @Parameter(description = "ID de l'utilisateur à mettre à jour", required = true)
-            @PathVariable Long userId,
+    public ResponseEntity<AuthResponse> updateUser(
+            @Parameter(description = "ID de l'utilisateur à mettre à jour (ID local ou UID Firebase)", required = true)
+            @PathVariable String userId,
             @Parameter(description = "Données de mise à jour (role, password optionnel)")
             @RequestBody Map<String, String> updateData) {
-        // À implémenter
-        return ResponseEntity.ok().build();
+        AuthResponse response = authService.updateUser(userId, updateData);
+        if (response.getUsername() == null && response.getMessage().contains("non trouvé")) {
+            return ResponseEntity.status(404).body(response);
+        }
+        return ResponseEntity.ok(response);
     }
 
     @Operation(

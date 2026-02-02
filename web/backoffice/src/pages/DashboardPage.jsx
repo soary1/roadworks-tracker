@@ -242,7 +242,7 @@ export default function DashboardPage() {
             </div>
             <div className="map-root">
               <MapContainer center={[-18.91, 47.52]} zoom={13} className="map-inner" scrollWheelZoom>
-                <TileLayer url="http://localhost:8081/styles/basic-preview/512/{z}/{x}/{y}.png" attribution="© OpenStreetMap contributors" />
+                <TileLayer url="http://localhost:8089/styles/basic-preview/512/{z}/{x}/{y}.png" attribution="© OpenStreetMap contributors" />
 
                 {events.map((event) => (
                   <Marker

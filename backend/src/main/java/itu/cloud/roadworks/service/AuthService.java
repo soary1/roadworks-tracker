@@ -40,7 +40,7 @@ public class AuthService {
     private static final String ROLE_MANAGER = "manager";
     private static final String ROLE_UTILISATEUR = "utilisateur";
     private static final int DEFAULT_SESSION_DURATION_MINUTES = 60;
-    private static final int DEFAULT_MAX_ATTEMPTS = 5;
+    private static final int DEFAULT_MAX_ATTEMPTS = 3;
 
     @Transactional
     public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
@@ -434,6 +434,87 @@ public class AuthService {
             log.error("Erreur lors de l'import depuis Firebase: {}", e.getMessage());
             return AuthResponse.builder()
                     .message("Erreur lors de l'import: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    @Transactional
+    public AuthResponse updateUser(String visitorId, Map<String, String> updateData) {
+        // L'ID peut être un UID Firebase ou un ID local
+        // Essayer d'abord de trouver l'utilisateur Firebase
+        try {
+            com.google.firebase.auth.UserRecord firebaseUser = firebaseService.getFirebaseUser(visitorId);
+            String email = firebaseUser.getEmail();
+            String displayName = firebaseUser.getDisplayName();
+
+            // Mettre à jour dans Firebase si mot de passe fourni
+            String newPassword = updateData.get("password");
+            if (newPassword != null && !newPassword.trim().isEmpty()) {
+                firebaseService.updateFirebaseUserPassword(visitorId, newPassword);
+                log.info("Mot de passe mis à jour dans Firebase pour {}", displayName);
+            }
+
+            log.info("Utilisateur Firebase {} mis à jour", displayName != null ? displayName : email);
+
+            return AuthResponse.builder()
+                    .username(displayName != null ? displayName : email)
+                    .message("Utilisateur mis à jour avec succès")
+                    .build();
+
+        } catch (Exception e) {
+            log.debug("Utilisateur non trouvé dans Firebase, tentative en base locale: {}", e.getMessage());
+        }
+
+        // Fallback: chercher en base locale par ID numérique
+        try {
+            Long userId = Long.parseLong(visitorId);
+            Optional<Account> accountOpt = accountRepository.findById(userId);
+
+            if (accountOpt.isEmpty()) {
+                return AuthResponse.builder()
+                        .message("Utilisateur non trouvé")
+                        .build();
+            }
+
+            Account account = accountOpt.get();
+            boolean updated = false;
+
+            // Mettre à jour le rôle si fourni
+            String newRole = updateData.get("role");
+            if (newRole != null && !newRole.trim().isEmpty()) {
+                Optional<Role> roleOpt = roleRepository.findByLibelle(newRole);
+                if (roleOpt.isPresent()) {
+                    account.setRole(roleOpt.get());
+                    updated = true;
+                    log.info("Rôle mis à jour pour {} : {}", account.getUsername(), newRole);
+                } else {
+                    return AuthResponse.builder()
+                            .message("Rôle '" + newRole + "' non trouvé")
+                            .build();
+                }
+            }
+
+            // Mettre à jour le mot de passe si fourni
+            String newPassword = updateData.get("password");
+            if (newPassword != null && !newPassword.trim().isEmpty()) {
+                account.setPwd(hashPassword(newPassword));
+                updated = true;
+                log.info("Mot de passe mis à jour pour {}", account.getUsername());
+            }
+
+            if (updated) {
+                accountRepository.save(account);
+            }
+
+            return AuthResponse.builder()
+                    .username(account.getUsername())
+                    .role(account.getRole().getLibelle())
+                    .message("Utilisateur mis à jour avec succès")
+                    .build();
+
+        } catch (NumberFormatException e) {
+            return AuthResponse.builder()
+                    .message("ID utilisateur invalide")
                     .build();
         }
     }
