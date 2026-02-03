@@ -47,7 +47,7 @@ export const notifyStatusChange = async (
 ): Promise<void> => {
   try {
     const newStatusLabel = STATUS_LABELS[newStatus] || newStatus;
-    const oldStatusLabel = oldStatus ? (STATUS_LABELS[oldStatus] || oldStatus) : 'Inconnu';
+    const oldStatusLabel = oldStatus ? (STATUS_LABELS[oldStatus] || oldStatus) : 'Nouveau';
 
     const shortDescription = description
       ? description.substring(0, 50) + (description.length > 50 ? '...' : '')

@@ -137,7 +137,7 @@ export const useRoadworksReportStore = defineStore('roadworks-report', {
      */
     async notifyStatusChange(report: RoadworksReportWithId, oldStatus: string | undefined, newStatus: string) {
       const newStatusLabel = STATUS_LABELS[newStatus] || newStatus;
-      const oldStatusLabel = oldStatus ? (STATUS_LABELS[oldStatus] || oldStatus) : 'Inconnu';
+      const oldStatusLabel = oldStatus ? (STATUS_LABELS[oldStatus] || oldStatus) : 'Nouveau';
 
       // Envoyer la notification native (apparaît même si l'app est en arrière-plan)
       await sendNativeNotification(report.id, report.description, oldStatus, newStatus);
