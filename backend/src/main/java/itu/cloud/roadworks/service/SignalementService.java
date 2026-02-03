@@ -6,7 +6,6 @@ import itu.cloud.roadworks.model.Signalement;
 import itu.cloud.roadworks.model.SignalementPhoto;
 import itu.cloud.roadworks.model.SignalementStatus;
 import itu.cloud.roadworks.model.SignalementWork;
-import itu.cloud.roadworks.model.SignalementPhoto;
 import itu.cloud.roadworks.model.TypeProblem;
 import itu.cloud.roadworks.model.Account;
 import itu.cloud.roadworks.model.Company;
@@ -17,7 +16,6 @@ import itu.cloud.roadworks.repository.StatusSignalementRepository;
 import itu.cloud.roadworks.repository.TypeProblemRepository;
 import itu.cloud.roadworks.repository.AccountRepository;
 import itu.cloud.roadworks.repository.SignalementWorkRepository;
-import itu.cloud.roadworks.repository.SignalementPhotoRepository;
 import itu.cloud.roadworks.repository.CompanyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -37,7 +35,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SignalementService {
     private final SignalementRepository repository;
-    private final SignalementPhotoRepository photoRepository;
     private final SignalementStatusRepository statusRepository;
     private final StatusSignalementRepository statusSignalementRepository;
     private final TypeProblemRepository typeProblemRepository;
