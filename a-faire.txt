@@ -1,0 +1,5 @@
+[ ] voir détails dans backoffice
+[ ] lecture des donnés synchnoser (surtout la réparation) des données synchroniser de firebase vers frontoffice
+[ ] icone qui ne s'affiche pas bien dans frontoffice
+[X] UI/UX de frontoffice
+[ ] modifier la date pour qu'il soit la date de signalement non pas la date de synchrnonisation

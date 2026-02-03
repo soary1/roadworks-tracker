@@ -3,6 +3,8 @@
    Design Minimaliste & Épuré
    ============================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+
 :root {
   /* Couleurs Primaires - Même que mobile */
   --primary-color: #ff6b0d;
@@ -50,7 +52,7 @@
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
 
   /* Typographie */
-  --font-family-base: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  --font-family-base: 'Manrope', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   --font-size-xs: 11px;
   --font-size-sm: 13px;
   --font-size-base: 15px;

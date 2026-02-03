@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MapView } from '../components/MapView'
 import { DashboardView } from '../components/DashboardView'
 import logo from '../assets/logo.png'
@@ -58,6 +58,11 @@ const mapTypeKey = (typeProblem) => {
 const mapCoords = (location) =>
   parseCoordsFromLocation(location) || locationCoordinates[location] || defaultCoords
 
+const isValidDate = (value) => {
+  const d = new Date(value)
+  return !Number.isNaN(d.getTime())
+}
+
 const adaptDtoToEvent = (dto) => {
   const detail = dto.detail ?? {}
   const coords = mapCoords(dto.location)
@@ -85,6 +90,14 @@ export function MapPage() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [filters, setFilters] = useState({
+    query: '',
+    status: 'all',
+    type: 'all',
+    budget: 'all',
+    dateFrom: '',
+    dateTo: '',
+  })
 
   useEffect(() => {
     setLoading(true)
@@ -102,6 +115,64 @@ export function MapPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [])
+
+  const statusOptions = useMemo(() => {
+    const unique = new Set(events.map((event) => slugify(event.detail_problem.etat)))
+    return ['all', ...Array.from(unique)]
+  }, [events])
+
+  const typeOptions = useMemo(() => {
+    const unique = new Set(events.map((event) => slugify(event.type_problem)))
+    return ['all', ...Array.from(unique)]
+  }, [events])
+
+  const filteredEvents = useMemo(() => {
+    const normalizedQuery = filters.query.trim().toLowerCase()
+
+    const matchesBudget = (budget) => {
+      if (filters.budget === 'all') return true
+      if (filters.budget === 'low') return budget < 1_000_000
+      if (filters.budget === 'mid') return budget >= 1_000_000 && budget < 5_000_000
+      if (filters.budget === 'high') return budget >= 5_000_000
+      return true
+    }
+
+    return events.filter((event) => {
+      const status = slugify(event.detail_problem.etat)
+      const type = slugify(event.type_problem)
+      const eventDate = new Date(event.detail_problem.date_problem)
+
+      const matchesQuery =
+        !normalizedQuery ||
+        event.type_problem.toLowerCase().includes(normalizedQuery) ||
+        event.detail_problem.description.toLowerCase().includes(normalizedQuery) ||
+        (event.detail_problem.entreprise_assign?.name || '').toLowerCase().includes(normalizedQuery)
+
+      const matchesStatus = filters.status === 'all' || status === filters.status
+      const matchesType = filters.type === 'all' || type === filters.type
+      const matchesDateFrom =
+        !filters.dateFrom || (isValidDate(eventDate) && eventDate >= new Date(filters.dateFrom))
+      const matchesDateTo =
+        !filters.dateTo || (isValidDate(eventDate) && eventDate <= new Date(filters.dateTo + 'T23:59:59'))
+
+      return (
+        matchesQuery &&
+        matchesStatus &&
+        matchesType &&
+        matchesBudget(event.detail_problem.budget) &&
+        matchesDateFrom &&
+        matchesDateTo
+      )
+    })
+  }, [events, filters])
+
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const resetFilters = () => {
+    setFilters({ query: '', status: 'all', type: 'all', budget: 'all', dateFrom: '', dateTo: '' })
+  }
 
   const renderView = () => {
     if (loading) {
@@ -122,18 +193,18 @@ export function MapPage() {
     }
 
     if (activeView === 'map') {
-      return <MapView events={events} />
+      return <MapView events={filteredEvents} />
     }
 
     if (activeView === 'dashboard') {
-      return <DashboardView events={events} />
+      return <DashboardView events={filteredEvents} />
     }
 
     return (
       <section className="list-view">
         <h2>Liste détaillée</h2>
         <ul>
-          {events.map((event) => (
+          {filteredEvents.map((event) => (
             <li key={event.id}>
               <strong>
                 {event.illustration_problem} {event.type_problem.replace(/_/g, ' ')}
@@ -153,25 +224,133 @@ export function MapPage() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div>
+        <div className="brand-block">
           <img src={logo} alt="Roadworks Tracker" className="app-logo" />
           <div>
             <p className="eyebrow">Roadworks Tracker</p>
             <h1>Suivi des incidents et travaux</h1>
+            <p className="subtitle">Visualisez, filtrez et pilotez les interventions en temps réel.</p>
           </div>
         </div>
-        <nav className="view-nav">
-          {views.map((view) => (
-            <button
-              key={view.key}
-              className={activeView === view.key ? 'active' : ''}
-              onClick={() => setActiveView(view.key)}
-            >
-              {view.label}
-            </button>
-          ))}
-        </nav>
+
+        <div className="header-actions">
+          <div className="badge badge-live">Flux en direct</div>
+          <nav className="view-nav">
+            {views.map((view) => (
+              <button
+                key={view.key}
+                className={activeView === view.key ? 'active' : ''}
+                onClick={() => setActiveView(view.key)}
+              >
+                {view.label}
+              </button>
+            ))}
+          </nav>
+        </div>
       </header>
+
+      <section className="filters-panel">
+        <div className="filters-header">
+          <div>
+            <p className="eyebrow">Affinez l'affichage</p>
+            <h2>Filtres intelligents</h2>
+            <p className="filters-subtitle">
+              Recherchez par mot-clé, statut, type ou budget pour ne voir que ce qui compte.
+            </p>
+          </div>
+          <button className="ghost-button" onClick={resetFilters}>Réinitialiser</button>
+        </div>
+
+        <div className="filters-grid">
+          <label className="field">
+            <span>Recherche rapide</span>
+            <div className="input-with-icon">
+              <span>🔎</span>
+              <input
+                type="search"
+                placeholder="Incident, entreprise, description…"
+                value={filters.query}
+                onChange={(e) => handleFilterChange('query', e.target.value)}
+              />
+            </div>
+          </label>
+
+          <label className="field">
+            <span>Statut</span>
+            <select value={filters.status} onChange={(e) => handleFilterChange('status', e.target.value)}>
+              {statusOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option === 'all' ? 'Tous' : option.replace(/_/g, ' ')}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Type de problème</span>
+            <select value={filters.type} onChange={(e) => handleFilterChange('type', e.target.value)}>
+              {typeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option === 'all' ? 'Tous' : option.replace(/_/g, ' ')}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Budget estimé</span>
+            <div className="pill-toggle">
+              {[
+                { key: 'all', label: 'Tous' },
+                { key: 'low', label: '< 1M Ar' },
+                { key: 'mid', label: '1M - 5M Ar' },
+                { key: 'high', label: '> 5M Ar' },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  className={filters.budget === item.key ? 'active' : ''}
+                  onClick={() => handleFilterChange('budget', item.key)}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </label>
+
+          <label className="field o">
+            <span>Depuis le</span>
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+            />
+          </label>
+
+          <label className="field date-field">
+            <span>Jusqu'au</span>
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="filters-foot">
+          <div className="stat-chip">
+            <span className="dot dot-success"></span>
+            <strong>{filteredEvents.length}</strong>
+            <p>résultats affichés</p>
+          </div>
+          <div className="stat-chip">
+            <span className="dot dot-warning"></span>
+            <strong>{events.length}</strong>
+            <p>signalements au total</p>
+          </div>
+        </div>
+      </section>
+
       <main className="app-main">{renderView()}</main>
     </div>
   )
