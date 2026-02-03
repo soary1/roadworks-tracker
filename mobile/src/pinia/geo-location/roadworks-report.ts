@@ -4,13 +4,24 @@ import { auth } from '@/services/firebase/routeworks-tracker';
 import {
   addRoadworksReport,
   getAllRoadworksReports,
+  subscribeToAllReports,
+  subscribeToUserReports,
   RoadworksReportData,
   RoadworksReportWithId,
 } from '@/services/firebase/roadworks-reports';
 import { showToast } from '@/utils/ui';
-import { alertCircleOutline } from 'ionicons/icons';
+import { notifyStatusChange as sendNativeNotification } from '@/services/notifications';
+import { alertCircleOutline, checkmarkCircleOutline, refreshCircleOutline, notificationsOutline } from 'ionicons/icons';
+import type { Unsubscribe } from 'firebase/firestore';
 
 export interface RoadworksReport extends RoadworksReportWithId {}
+
+// Labels pour les statuts
+const STATUS_LABELS: Record<string, string> = {
+  'new': 'Nouveau',
+  'in_progress': 'En cours',
+  'completed': 'Terminé',
+};
 
 export const useRoadworksReportStore = defineStore('roadworks-report', {
   state: () => ({
@@ -19,6 +30,8 @@ export const useRoadworksReportStore = defineStore('roadworks-report', {
     isLoading: false,
     error: null as string | null,
     currentUserId: null as string | null,
+    unsubscribeAll: null as Unsubscribe | null,
+    unsubscribeUser: null as Unsubscribe | null,
   }),
 
   actions: {
@@ -69,6 +82,91 @@ export const useRoadworksReportStore = defineStore('roadworks-report', {
       } finally {
         this.isLoading = false;
       }
+    },
+
+    /**
+     * S'abonner aux mises à jour en temps réel de tous les signalements
+     */
+    subscribeToReports() {
+      // Se désabonner si déjà abonné
+      this.unsubscribeFromReports();
+
+      // Récupérer l'ID utilisateur actuel
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        this.currentUserId = userId;
+      }
+
+      // S'abonner à tous les signalements
+      this.unsubscribeAll = subscribeToAllReports((reports) => {
+        this.reports = reports;
+        console.log(`📍 ${reports.length} signalements mis à jour en temps réel`);
+      });
+
+      // S'abonner aux signalements de l'utilisateur pour les notifications de statut
+      if (userId) {
+        this.unsubscribeUser = subscribeToUserReports(
+          () => {}, // On utilise déjà subscribeToAllReports pour la mise à jour
+          (report, oldStatus, newStatus) => {
+            // Notification de changement de statut
+            this.notifyStatusChange(report, oldStatus, newStatus);
+          }
+        );
+      }
+
+      console.log('🔔 Abonnement aux notifications activé');
+    },
+
+    /**
+     * Se désabonner des mises à jour
+     */
+    unsubscribeFromReports() {
+      if (this.unsubscribeAll) {
+        this.unsubscribeAll();
+        this.unsubscribeAll = null;
+      }
+      if (this.unsubscribeUser) {
+        this.unsubscribeUser();
+        this.unsubscribeUser = null;
+      }
+    },
+
+    /**
+     * Notifier l'utilisateur d'un changement de statut
+     * Envoie une notification native sur le téléphone + un toast in-app
+     */
+    async notifyStatusChange(report: RoadworksReportWithId, oldStatus: string | undefined, newStatus: string) {
+      const newStatusLabel = STATUS_LABELS[newStatus] || newStatus;
+      const oldStatusLabel = oldStatus ? (STATUS_LABELS[oldStatus] || oldStatus) : 'Inconnu';
+
+      // Envoyer la notification native (apparaît même si l'app est en arrière-plan)
+      await sendNativeNotification(report.id, report.description, oldStatus, newStatus);
+
+      // Aussi afficher un toast si l'app est au premier plan
+      let icon = notificationsOutline;
+      let color: 'primary' | 'success' | 'warning' = 'primary';
+
+      if (newStatus === 'completed') {
+        icon = checkmarkCircleOutline;
+        color = 'success';
+      } else if (newStatus === 'in_progress') {
+        icon = refreshCircleOutline;
+        color = 'warning';
+      }
+
+      const description = report.description
+        ? report.description.substring(0, 30) + (report.description.length > 30 ? '...' : '')
+        : 'Votre signalement';
+
+      showToast(
+        `${description} : ${oldStatusLabel} → ${newStatusLabel}`,
+        4000,
+        icon,
+        color,
+        'top'
+      );
+
+      console.log(`🔔 Notification native envoyée: Signalement ${report.id} - Statut changé de "${oldStatusLabel}" à "${newStatusLabel}"`);
     },
 
     getReports() {

@@ -7,6 +7,7 @@ import { createPinia } from 'pinia';
 
 import { useConfigStore } from './pinia/firebase/routeworks-tracker';
 import { useGeoLocationPermissionStore } from './pinia/geo-location/permission';
+import { initNotifications, createNotificationChannel, setupNotificationListeners } from './services/notifications';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/vue/css/core.css';
@@ -60,6 +61,12 @@ const initApp = async () => {
 
     const geoLocationPermissionStore = useGeoLocationPermissionStore();
     await geoLocationPermissionStore.loadStatus();
+
+    // Initialiser les notifications locales
+    await createNotificationChannel();
+    await initNotifications();
+    setupNotificationListeners();
+    console.log('Notifications initialisées');
   } catch (error) {
     console.error(error);
   } finally {

@@ -5,8 +5,10 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
   serverTimestamp,
   Timestamp,
+  Unsubscribe,
 } from 'firebase/firestore';
 
 export interface WorkData {
@@ -115,4 +117,89 @@ export const getCurrentUserReports = async (): Promise<RoadworksReportWithId[]> 
     console.error('Erreur lors de la récupération des signalements utilisateur:', error);
     throw error;
   }
+};
+
+/**
+ * Écouter les changements en temps réel sur les signalements de l'utilisateur
+ * Retourne une fonction pour se désabonner
+ */
+export const subscribeToUserReports = (
+  onUpdate: (reports: RoadworksReportWithId[]) => void,
+  onStatusChange?: (report: RoadworksReportWithId, oldStatus: string | undefined, newStatus: string) => void
+): Unsubscribe | null => {
+  const userId = auth.currentUser?.uid;
+
+  if (!userId) {
+    console.warn('Utilisateur non authentifié - impossible de souscrire aux notifications');
+    return null;
+  }
+
+  const q = query(
+    collection(firestore, 'roadworks_reports'),
+    where('userId', '==', userId)
+  );
+
+  // Cache pour détecter les changements de statut
+  const statusCache: Map<string, string | undefined> = new Map();
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const reports: RoadworksReportWithId[] = [];
+
+    snapshot.docChanges().forEach((change) => {
+      const report = {
+        id: change.doc.id,
+        ...change.doc.data(),
+      } as RoadworksReportWithId;
+
+      // Détecter les changements de statut
+      if (change.type === 'modified' && onStatusChange) {
+        const oldStatus = statusCache.get(report.id);
+        const newStatus = report.reportStatus;
+
+        if (oldStatus !== newStatus && newStatus) {
+          console.log(`📢 Statut changé pour ${report.id}: ${oldStatus} -> ${newStatus}`);
+          onStatusChange(report, oldStatus, newStatus);
+        }
+      }
+
+      // Mettre à jour le cache
+      statusCache.set(report.id, report.reportStatus);
+    });
+
+    // Récupérer tous les documents actuels
+    snapshot.docs.forEach((doc) => {
+      reports.push({
+        id: doc.id,
+        ...doc.data(),
+      } as RoadworksReportWithId);
+    });
+
+    onUpdate(reports);
+  }, (error) => {
+    console.error('Erreur lors de l\'écoute des signalements:', error);
+  });
+
+  return unsubscribe;
+};
+
+/**
+ * Écouter tous les signalements en temps réel (pour la carte)
+ */
+export const subscribeToAllReports = (
+  onUpdate: (reports: RoadworksReportWithId[]) => void
+): Unsubscribe => {
+  const q = query(collection(firestore, 'roadworks_reports'));
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const reports = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    } as RoadworksReportWithId));
+
+    onUpdate(reports);
+  }, (error) => {
+    console.error('Erreur lors de l\'écoute des signalements:', error);
+  });
+
+  return unsubscribe;
 };

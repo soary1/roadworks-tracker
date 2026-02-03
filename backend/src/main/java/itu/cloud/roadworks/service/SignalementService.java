@@ -105,6 +105,15 @@ public class SignalementService {
 
         // Notification WebSocket
         notificationService.notifyStatusUpdated(signalement, statusName);
+
+        // Synchroniser vers Firebase pour notifier l'utilisateur mobile
+        try {
+            syncToFirebase(signalementId);
+            System.out.println("Signalement synchronisé vers Firebase après mise à jour du statut");
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la synchronisation vers Firebase: " + e.getMessage());
+            // On ne propage pas l'erreur pour ne pas bloquer la mise à jour du statut
+        }
     }
 
     // Méthode surchargée pour la rétro-compatibilité
