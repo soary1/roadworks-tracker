@@ -384,20 +384,9 @@ public AuthResponse register(RegisterRequest request) {
 
             com.google.cloud.firestore.DocumentSnapshot doc = docRef.get().get();
             if (doc.exists()) {
-                // Mettre à jour le document: isLocked = false, failedAttempts = 0
-                docRef.update(
-                        "isLocked", false,
-                        "failedAttempts", 0
-                ).get();
-                log.info("Utilisateur {} débloqué dans Firestore", email);
-            } else {
-                // Le document n'existe pas, créer avec isLocked = false
-                Map<String, Object> data = new java.util.HashMap<>();
-                data.put("email", email);
-                data.put("isLocked", false);
-                data.put("failedAttempts", 0);
-                docRef.set(data).get();
-                log.info("Document loginAttempts créé pour {} (débloqué)", email);
+                // Supprimer le document pour débloquer l'utilisateur
+                docRef.delete().get();
+                log.info("Document loginAttempts supprimé pour {} (utilisateur débloqué)", email);
             }
         } catch (Exception e) {
             log.error("Erreur lors du déblocage dans Firestore: {}", e.getMessage());
@@ -635,21 +624,16 @@ public AuthResponse register(RegisterRequest request) {
                 }
 
                 try {
-                    // Vérifier si l'utilisateur existe dans Firebase
-                    com.google.firebase.auth.UserRecord existingFirebaseUser = firebaseService.getFirebaseUserByEmail(username);
+                    // Synchroniser le statut bloqué vers Firestore loginAttempts directement
+                    boolean localIsLocked = localUser.getIsLocked();
                     
-                    if (existingFirebaseUser != null) {
-                        // Synchroniser le statut bloqué vers Firestore loginAttempts
-                        boolean localIsLocked = localUser.getIsLocked();
-                        
-                        if (localIsLocked) {
-                            lockUserInFirestore(username);
-                        } else {
-                            unlockUserInFirestore(username);
-                        }
-                        syncedCount++;
-                        log.info("Statut de {} envoyé vers Firestore (bloqué: {})", username, localIsLocked);
+                    if (localIsLocked) {
+                        lockUserInFirestore(username);
+                    } else {
+                        unlockUserInFirestore(username);
                     }
+                    syncedCount++;
+                    log.info("Statut de {} envoyé vers Firestore (bloqué: {})", username, localIsLocked);
                 } catch (Exception e) {
                     log.warn("Impossible de synchroniser le statut de {} vers Firebase: {}", username, e.getMessage());
                     errorCount++;
