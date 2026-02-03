@@ -437,6 +437,7 @@ public AuthResponse register(RegisterRequest request) {
 
         Account account = accountOpt.get();
         account.setIsLocked(false);
+        account.setIsActive(true);
         account.setAttempts(0);
         accountRepository.save(account);
 
