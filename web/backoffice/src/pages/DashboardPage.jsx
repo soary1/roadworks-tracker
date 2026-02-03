@@ -147,8 +147,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchSignalements()
-    fetchUnsyncedFirebaseSignalements() // Récupérer aussi les signalements Firebase non synchronisés
-  }, [fetchSignalements, fetchUnsyncedFirebaseSignalements])
+    // Ne plus charger automatiquement les signalements Firebase
+    // Ils seront chargés uniquement lors de la synchronisation
+  }, [fetchSignalements])
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -178,6 +179,10 @@ export default function DashboardPage() {
       setSyncing(true)
       setSyncMessage('')
 
+      // D'abord, récupérer les signalements Firebase non synchronisés pour affichage
+      await fetchUnsyncedFirebaseSignalements()
+
+      // Ensuite, faire la synchronisation
       const response = await fetch('/api/signalements/sync/firebase', {
         method: 'POST',
         headers: {
@@ -193,9 +198,12 @@ export default function DashboardPage() {
       const data = await response.json()
       setSyncMessage(`✓ ${data.imported} signalements importés depuis Firebase`)
 
-      // Rafraîchir la liste des signalements et les non synchronisés
+      // Rafraîchir la liste des signalements locaux
       await fetchSignalements()
-      await fetchUnsyncedFirebaseSignalements()
+      
+      // Vider les signalements non synchronisés après la sync
+      setUnsyncedEvents([])
+      setTotalUnsyncedCount(0)
     } catch (err) {
       console.error('Erreur:', err)
       setSyncMessage(`✗ Erreur: ${err.message}`)
@@ -221,9 +229,9 @@ export default function DashboardPage() {
                 onClick={handleSyncFirebase}
                 disabled={syncing}
                 className="action-button"
-                title="Synchroniser les données depuis Firebase"
+                title="Synchroniser les signalements avec l'application mobile"
               >
-                {syncing ? '⏳ Synchronisation...' : '🔄 Synchroniser Firebase'}
+                {syncing ? '⏳ Synchronisation...' : '🔄 Synchroniser Mobile'}
               </button>
               <button onClick={() => navigate('/users')} className="action-button">
                 👥 Gestion Utilisateurs
@@ -300,7 +308,12 @@ export default function DashboardPage() {
         {!loading && (
           <>
             <div className="info-bar">
-              📍 {events.length} signalement{events.length > 1 ? 's' : ''} synchronisé{events.length > 1 ? 's' : ''}
+              📍 {events.length} signalement{events.length > 1 ? 's' : ''} local{events.length > 1 ? 'aux' : ''}
+              {role === 'manager' && (
+                <span className="sync-hint">
+                  {' '}| Cliquez sur "Synchroniser Mobile" pour importer les signalements de l'application mobile
+                </span>
+              )}
               {role === 'manager' && totalUnsyncedCount > 0 && (
                 <span className="unsynced-count">
                   {' '}| 🔶 {totalUnsyncedCount} en attente de synchronisation
