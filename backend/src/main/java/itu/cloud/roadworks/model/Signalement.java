@@ -59,4 +59,11 @@ public class Signalement {
     @EqualsAndHashCode.Exclude
     @Builder.Default
     private List<SignalementWork> works = new ArrayList<>();
+
+    @OneToMany(mappedBy = "signalement", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("photoOrder ASC")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Builder.Default
+    private List<SignalementPhoto> photos = new ArrayList<>();
 }

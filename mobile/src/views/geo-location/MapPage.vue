@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 
 import {
   IonPage, IonHeader, IonToolbar,
@@ -228,13 +228,32 @@ watch(
   { deep: true }
 )
 
+// Mettre à jour la carte automatiquement quand les signalements changent en temps réel
+watch(
+  () => reportStore.reports,
+  () => {
+    if (map) {
+      displayReportsOnMap();
+    }
+  },
+  { deep: true }
+)
+
 onMounted(async () => {
   L.Marker.prototype.options.icon = defaultMarker;
   await mountMap();
 
-  await reportStore.loadAllReports({
-    onCacheApplied: () => displayReportsOnMap(),
-  });
+  // S'abonner aux mises à jour en temps réel (inclut les notifications de changement de statut)
+  reportStore.subscribeToReports();
+
+  // Charger les données initiales
+  await reportStore.loadAllReports();
+  displayReportsOnMap();
+});
+
+onUnmounted(() => {
+  // Se désabonner lors de la destruction du composant
+  reportStore.unsubscribeFromReports();
 });
 </script>
 

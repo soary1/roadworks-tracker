@@ -105,7 +105,7 @@ public class AuthService {
         // Créer l'utilisateur dans Firebase
         String firebaseUid;
         try {
-            String email = request.getUsername() + "@roadworks.app"; // Utiliser un email par défaut
+            String email = request.getUsername(); // Utiliser un email par défaut
             firebaseUid = firebaseService.createFirebaseUser(
                     email, 
                     request.getPassword(), 
