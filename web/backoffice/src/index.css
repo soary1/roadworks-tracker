@@ -842,6 +842,21 @@ body {
   background: #D97706;
 }
 
+.delete-button {
+  padding: 6px 12px;
+  background: var(--status-danger);
+  color: var(--neutral-white);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.delete-button:hover {
+  background: #DC2626;
+}
+
 /* ============================================
    MODALS
    ============================================ */

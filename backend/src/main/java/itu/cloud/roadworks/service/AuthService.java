@@ -7,10 +7,12 @@ import itu.cloud.roadworks.model.Account;
 import itu.cloud.roadworks.model.Config;
 import itu.cloud.roadworks.model.Role;
 import itu.cloud.roadworks.model.Session;
+import itu.cloud.roadworks.model.Signalement;
 import itu.cloud.roadworks.repository.AccountRepository;
 import itu.cloud.roadworks.repository.ConfigRepository;
 import itu.cloud.roadworks.repository.RoleRepository;
 import itu.cloud.roadworks.repository.SessionRepository;
+import itu.cloud.roadworks.repository.SignalementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class AuthService {
     private final SessionRepository sessionRepository;
     private final ConfigRepository configRepository;
     private final FirebaseService firebaseService;
+    private final SignalementRepository signalementRepository;
 
     private static final String ROLE_MANAGER = "manager";
     private static final String ROLE_UTILISATEUR = "utilisateur";
@@ -510,6 +513,68 @@ public class AuthService {
                     .username(account.getUsername())
                     .role(account.getRole().getLibelle())
                     .message("Utilisateur mis à jour avec succès")
+                    .build();
+
+        } catch (NumberFormatException e) {
+            return AuthResponse.builder()
+                    .message("ID utilisateur invalide")
+                    .build();
+        }
+    }
+
+    @Transactional
+    public AuthResponse deleteUser(String visitorId) {
+        // Essayer d'abord de supprimer un utilisateur Firebase
+        try {
+            com.google.firebase.auth.UserRecord firebaseUser = firebaseService.getFirebaseUser(visitorId);
+            String email = firebaseUser.getEmail();
+            String displayName = firebaseUser.getDisplayName() != null ? firebaseUser.getDisplayName() : email;
+
+            // Supprimer l'utilisateur de Firebase
+            firebaseService.deleteFirebaseUser(visitorId);
+            log.info("Utilisateur Firebase {} supprimé", displayName);
+
+            return AuthResponse.builder()
+                    .username(displayName)
+                    .message("Utilisateur supprimé avec succès")
+                    .build();
+
+        } catch (Exception e) {
+            log.debug("Utilisateur non trouvé dans Firebase, tentative en base locale: {}", e.getMessage());
+        }
+
+        // Fallback: supprimer en base locale par ID numérique
+        try {
+            Long userId = Long.parseLong(visitorId);
+            Optional<Account> accountOpt = accountRepository.findById(userId);
+
+            if (accountOpt.isEmpty()) {
+                return AuthResponse.builder()
+                        .message("Utilisateur non trouvé")
+                        .build();
+            }
+
+            Account account = accountOpt.get();
+            String username = account.getUsername();
+
+            // Supprimer toutes les sessions de l'utilisateur
+            sessionRepository.deleteByAccount(account);
+            log.info("Sessions supprimées pour l'utilisateur {}", username);
+
+            // Supprimer tous les signalements de l'utilisateur (cascade supprimera les statuses, works et photos)
+            java.util.List<Signalement> signalements = signalementRepository.findByAccountId(userId);
+            if (!signalements.isEmpty()) {
+                signalementRepository.deleteAll(signalements);
+                log.info("{} signalement(s) supprimé(s) pour l'utilisateur {}", signalements.size(), username);
+            }
+
+            // Supprimer l'utilisateur
+            accountRepository.delete(account);
+            log.info("Utilisateur {} supprimé avec succès", username);
+
+            return AuthResponse.builder()
+                    .username(username)
+                    .message("Utilisateur et ses " + signalements.size() + " signalement(s) supprimés avec succès")
                     .build();
 
         } catch (NumberFormatException e) {

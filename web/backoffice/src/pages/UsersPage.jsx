@@ -225,6 +225,36 @@ export default function UsersPage() {
     }
   }
 
+  const handleDeleteUser = async (userId, username) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur "${username}" ?\n\nCette action supprimera également tous ses signalements et est irréversible.`)) {
+      return
+    }
+
+    setError('')
+    setSuccess('')
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/auth/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors de la suppression')
+      }
+
+      setSuccess(data.message || `Utilisateur "${username}" supprimé avec succès`)
+      fetchUsers()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -304,12 +334,19 @@ export default function UsersPage() {
                     </td>
                     <td>{formatDate(user.createdAt)}</td>
                     <td className="actions-cell">
-                      <button 
+                      <button
                         onClick={() => handleEditUser(user)}
                         className="action-button edit-button"
                         title="Modifier l'utilisateur"
                       >
                         ✏️ Modifier
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.id, user.username)}
+                        className="action-button delete-button"
+                        title="Supprimer l'utilisateur"
+                      >
+                        🗑️ Supprimer
                       </button>
                       {user.isLocked && (
                         <button 

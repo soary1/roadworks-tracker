@@ -299,6 +299,39 @@ public class AuthApi {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(
+            summary = "Supprimer un utilisateur",
+            description = """
+                    Supprime un utilisateur et tous ses signalements associés.
+                    Cette action est irréversible et supprimera également:
+                    - Toutes les sessions de l'utilisateur
+                    - Tous les signalements créés par l'utilisateur
+                    - Les statuts, travaux et photos associés aux signalements
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Utilisateur supprimé avec succès",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Utilisateur non trouvé"
+            )
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @DeleteMapping("/users/{userId}")
+    public ResponseEntity<AuthResponse> deleteUser(
+            @Parameter(description = "ID de l'utilisateur à supprimer (ID local ou UID Firebase)", required = true)
+            @PathVariable String userId) {
+        AuthResponse response = authService.deleteUser(userId);
+        if (response.getUsername() == null && response.getMessage().contains("non trouvé")) {
+            return ResponseEntity.status(404).body(response);
+        }
+        return ResponseEntity.ok(response);
+    }
+
     // Schemas pour la documentation Swagger
     @Schema(description = "Réponse contenant les informations d'un rôle")
     private record RoleResponse(
