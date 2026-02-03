@@ -390,9 +390,49 @@ public AuthResponse register(RegisterRequest request) {
                         "failedAttempts", 0
                 ).get();
                 log.info("Utilisateur {} débloqué dans Firestore", email);
+            } else {
+                // Le document n'existe pas, créer avec isLocked = false
+                Map<String, Object> data = new java.util.HashMap<>();
+                data.put("email", email);
+                data.put("isLocked", false);
+                data.put("failedAttempts", 0);
+                docRef.set(data).get();
+                log.info("Document loginAttempts créé pour {} (débloqué)", email);
             }
         } catch (Exception e) {
             log.error("Erreur lors du déblocage dans Firestore: {}", e.getMessage());
+        }
+    }
+
+    private void lockUserInFirestore(String email) {
+        try {
+            com.google.cloud.firestore.Firestore firestore = firebaseService.getFirestore();
+            if (firestore == null) {
+                log.warn("Firestore non disponible pour bloquer {}", email);
+                return;
+            }
+
+            // Le document ID est l'email
+            com.google.cloud.firestore.DocumentReference docRef = firestore
+                    .collection("loginAttempts")
+                    .document(email);
+
+            com.google.cloud.firestore.DocumentSnapshot doc = docRef.get().get();
+            if (doc.exists()) {
+                // Mettre à jour le document: isLocked = true
+                docRef.update("isLocked", true).get();
+                log.info("Utilisateur {} bloqué dans Firestore", email);
+            } else {
+                // Le document n'existe pas, créer avec isLocked = true
+                Map<String, Object> data = new java.util.HashMap<>();
+                data.put("email", email);
+                data.put("isLocked", true);
+                data.put("failedAttempts", 3); // Simuler 3 tentatives échouées
+                docRef.set(data).get();
+                log.info("Document loginAttempts créé pour {} (bloqué)", email);
+            }
+        } catch (Exception e) {
+            log.error("Erreur lors du blocage dans Firestore: {}", e.getMessage());
         }
     }
 
@@ -434,6 +474,10 @@ public AuthResponse register(RegisterRequest request) {
             Role defaultRole = roleRepository.findByLibelle(ROLE_UTILISATEUR)
                     .orElseThrow(() -> new RuntimeException("Rôle " + ROLE_UTILISATEUR + " non trouvé"));
 
+            // Récupérer les utilisateurs bloqués depuis Firestore loginAttempts
+            Map<String, Boolean> lockedUsersFromFirestore = getLockedUsersFromFirestore();
+            log.info("Utilisateurs bloqués dans Firestore: {}", lockedUsersFromFirestore.keySet());
+
             // Créer un set des emails Firebase pour éviter les doublons
             java.util.Set<String> firebaseEmails = new java.util.HashSet<>();
 
@@ -450,9 +494,13 @@ public AuthResponse register(RegisterRequest request) {
                 String username = email; // Utiliser l'email complet comme username
                 firebaseEmails.add(email);
 
-                // Importer le statut de l'utilisateur depuis Firebase
-                boolean isActive = !firebaseUser.isDisabled();
-                boolean isLocked = firebaseUser.isDisabled();
+                // Vérifier le statut bloqué depuis Firestore loginAttempts (prioritaire)
+                boolean isLockedInFirestore = lockedUsersFromFirestore.getOrDefault(email, false);
+                boolean isDisabledInAuth = firebaseUser.isDisabled();
+                
+                // L'utilisateur est bloqué si bloqué dans Firestore OU désactivé dans Firebase Auth
+                boolean isLocked = isLockedInFirestore || isDisabledInAuth;
+                boolean isActive = !isLocked;
 
                 // Vérifier si l'utilisateur existe déjà
                 Optional<Account> existingAccount = accountRepository.findByUsername(username);
@@ -468,7 +516,8 @@ public AuthResponse register(RegisterRequest request) {
                         }
                         accountRepository.save(account);
                         updatedFromFirebase++;
-                        log.info("Utilisateur {} mis à jour depuis Firebase (bloqué: {})", username, isLocked);
+                        log.info("Utilisateur {} mis à jour depuis Firebase (bloqué: {}, source: {})", 
+                                username, isLocked, isLockedInFirestore ? "Firestore" : "Firebase Auth");
                     }
                     continue;
                 }
@@ -489,7 +538,7 @@ public AuthResponse register(RegisterRequest request) {
                 log.info("Utilisateur {} importé depuis Firebase (actif: {}, bloqué: {})", username, isActive, isLocked);
             }
 
-            // ===== ÉTAPE 2: Exporter les utilisateurs locaux (non-manager) vers Firebase =====
+            // ===== ÉTAPE 2: Exporter/Synchroniser les utilisateurs locaux vers Firebase =====
             List<Account> localUsers = accountRepository.findAllWithRole();
 
             for (Account localUser : localUsers) {
@@ -506,39 +555,46 @@ public AuthResponse register(RegisterRequest request) {
                     continue;
                 }
 
-                // Ignorer les utilisateurs qui viennent déjà de Firebase
-                if (firebaseEmails.contains(username)) {
-                    continue;
-                }
-
                 try {
                     // Vérifier si l'utilisateur existe déjà dans Firebase
                     com.google.firebase.auth.UserRecord existingFirebaseUser = firebaseService.getFirebaseUserByEmail(username);
                     
                     if (existingFirebaseUser != null) {
-                        // Mettre à jour le statut dans Firebase si nécessaire
-                        boolean shouldBeDisabled = localUser.getIsLocked();
-                        if (existingFirebaseUser.isDisabled() != shouldBeDisabled) {
-                            firebaseService.createOrUpdateFirebaseUser(username, localUser.getUsername(), shouldBeDisabled);
+                        // Synchroniser le statut bloqué vers Firestore loginAttempts
+                        boolean localIsLocked = localUser.getIsLocked();
+                        boolean firestoreIsLocked = lockedUsersFromFirestore.getOrDefault(username, false);
+                        
+                        // Si le statut local est différent de Firestore, mettre à jour Firestore
+                        if (localIsLocked != firestoreIsLocked) {
+                            if (localIsLocked) {
+                                // Bloquer dans Firestore
+                                lockUserInFirestore(username);
+                            } else {
+                                // Débloquer dans Firestore
+                                unlockUserInFirestore(username);
+                            }
                             updatedInFirebase++;
-                            log.info("Utilisateur {} mis à jour dans Firebase (désactivé: {})", username, shouldBeDisabled);
+                            log.info("Statut de {} synchronisé vers Firestore (bloqué: {})", username, localIsLocked);
                         }
                     } else {
-                        // Créer l'utilisateur dans Firebase
-                        firebaseService.createOrUpdateFirebaseUser(username, localUser.getUsername(), localUser.getIsLocked());
-                        exportedToFirebase++;
-                        log.info("Utilisateur {} exporté vers Firebase", username);
+                        // L'utilisateur n'existe pas dans Firebase, l'ignorer pour les emails existants
+                        if (!firebaseEmails.contains(username)) {
+                            // Créer l'utilisateur dans Firebase
+                            firebaseService.createOrUpdateFirebaseUser(username, localUser.getUsername(), localUser.getIsLocked());
+                            exportedToFirebase++;
+                            log.info("Utilisateur {} exporté vers Firebase", username);
+                        }
                     }
                 } catch (Exception e) {
-                    log.warn("Impossible d'exporter l'utilisateur {} vers Firebase: {}", username, e.getMessage());
+                    log.warn("Impossible de synchroniser l'utilisateur {} vers Firebase: {}", username, e.getMessage());
                 }
             }
 
             StringBuilder message = new StringBuilder("Synchronisation réussie: ");
-            message.append(importedFromFirebase).append(" importés de Firebase, ");
-            message.append(updatedFromFirebase).append(" mis à jour depuis Firebase, ");
-            message.append(exportedToFirebase).append(" exportés vers Firebase, ");
-            message.append(updatedInFirebase).append(" mis à jour dans Firebase");
+            message.append(importedFromFirebase).append(" importés, ");
+            message.append(updatedFromFirebase).append(" mis à jour depuis mobile, ");
+            message.append(exportedToFirebase).append(" exportés, ");
+            message.append(updatedInFirebase).append(" statuts synchronisés vers mobile");
 
             return AuthResponse.builder()
                     .message(message.toString())
