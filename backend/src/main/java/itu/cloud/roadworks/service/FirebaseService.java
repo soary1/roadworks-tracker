@@ -165,4 +165,63 @@ public class FirebaseService {
             throw new RuntimeException("Impossible de récupérer les utilisateurs Firebase: " + e.getMessage(), e);
         }
     }
+
+    /**
+     * Vérifie si un utilisateur existe dans Firebase par email
+     * @param email L'email à vérifier
+     * @return Le UserRecord si trouvé, null sinon
+     */
+    public UserRecord getFirebaseUserByEmail(String email) {
+        try {
+            return firebaseAuth.getUserByEmail(email);
+        } catch (FirebaseAuthException e) {
+            // L'utilisateur n'existe pas
+            return null;
+        }
+    }
+
+    /**
+     * Crée ou met à jour un utilisateur dans Firebase
+     * @param email L'email de l'utilisateur
+     * @param displayName Le nom d'affichage
+     * @param isDisabled Si l'utilisateur doit être désactivé
+     * @return Le UID Firebase
+     */
+    public String createOrUpdateFirebaseUser(String email, String displayName, boolean isDisabled) {
+        try {
+            // Vérifier si l'utilisateur existe déjà
+            UserRecord existingUser = getFirebaseUserByEmail(email);
+            
+            if (existingUser != null) {
+                // Mettre à jour l'utilisateur existant
+                UserRecord.UpdateRequest updateRequest = new UserRecord.UpdateRequest(existingUser.getUid())
+                        .setDisabled(isDisabled);
+                
+                if (displayName != null && !displayName.isEmpty()) {
+                    updateRequest.setDisplayName(displayName);
+                }
+                
+                firebaseAuth.updateUser(updateRequest);
+                log.info("Utilisateur Firebase mis à jour. UID: {}, Email: {}", existingUser.getUid(), email);
+                return existingUser.getUid();
+            } else {
+                // Créer un nouvel utilisateur avec un mot de passe temporaire
+                UserRecord.CreateRequest request = new UserRecord.CreateRequest()
+                        .setEmail(email)
+                        .setPassword(java.util.UUID.randomUUID().toString()) // Mot de passe temporaire
+                        .setDisabled(isDisabled);
+                
+                if (displayName != null && !displayName.isEmpty()) {
+                    request.setDisplayName(displayName);
+                }
+
+                UserRecord userRecord = firebaseAuth.createUser(request);
+                log.info("Utilisateur Firebase créé. UID: {}, Email: {}", userRecord.getUid(), email);
+                return userRecord.getUid();
+            }
+        } catch (FirebaseAuthException e) {
+            log.error("Erreur lors de la création/mise à jour de l'utilisateur Firebase: {}", e.getMessage());
+            throw new RuntimeException("Impossible de créer/mettre à jour l'utilisateur dans Firebase: " + e.getMessage(), e);
+        }
+    }
 }

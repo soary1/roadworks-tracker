@@ -422,20 +422,20 @@ public AuthResponse register(RegisterRequest request) {
     @Transactional
     public AuthResponse importUsersFromFirebase() {
         try {
+            int importedFromFirebase = 0;
+            int updatedFromFirebase = 0;
+            int exportedToFirebase = 0;
+            int updatedInFirebase = 0;
+
+            // ===== ÉTAPE 1: Importer les utilisateurs Firebase vers la base locale =====
             java.util.List<com.google.firebase.auth.UserRecord> firebaseUsers = firebaseService.getAllFirebaseUsers();
             
-            if (firebaseUsers.isEmpty()) {
-                return AuthResponse.builder()
-                        .message("Aucun utilisateur Firebase trouvé")
-                        .build();
-            }
-
             // Récupérer le rôle "utilisateur" pour les imports
             Role defaultRole = roleRepository.findByLibelle(ROLE_UTILISATEUR)
                     .orElseThrow(() -> new RuntimeException("Rôle " + ROLE_UTILISATEUR + " non trouvé"));
 
-            int importedCount = 0;
-            int updatedCount = 0;
+            // Créer un set des usernames Firebase pour éviter les doublons
+            java.util.Set<String> firebaseUsernames = new java.util.HashSet<>();
 
             for (com.google.firebase.auth.UserRecord firebaseUser : firebaseUsers) {
                 String username = firebaseUser.getDisplayName();
@@ -449,6 +449,8 @@ public AuthResponse register(RegisterRequest request) {
                         username = firebaseUser.getUid();
                     }
                 }
+
+                firebaseUsernames.add(username);
 
                 // Importer le statut de l'utilisateur depuis Firebase
                 boolean isActive = !firebaseUser.isDisabled();
@@ -467,8 +469,8 @@ public AuthResponse register(RegisterRequest request) {
                             account.setAttempts(0);
                         }
                         accountRepository.save(account);
-                        updatedCount++;
-                        log.info("Utilisateur {} mis à jour (bloqué: {})", username, isLocked);
+                        updatedFromFirebase++;
+                        log.info("Utilisateur {} mis à jour depuis Firebase (bloqué: {})", username, isLocked);
                     }
                     continue;
                 }
@@ -485,18 +487,62 @@ public AuthResponse register(RegisterRequest request) {
                         .build();
 
                 accountRepository.save(account);
-                importedCount++;
+                importedFromFirebase++;
                 log.info("Utilisateur {} importé depuis Firebase (actif: {}, bloqué: {})", username, isActive, isLocked);
             }
 
+            // ===== ÉTAPE 2: Exporter les utilisateurs locaux vers Firebase =====
+            List<Account> localUsers = accountRepository.findAllWithRole();
+
+            for (Account localUser : localUsers) {
+                // Ignorer les utilisateurs qui viennent déjà de Firebase
+                if (firebaseUsernames.contains(localUser.getUsername())) {
+                    continue;
+                }
+
+                // Construire un email pour Firebase (username@roadworks.local)
+                String email = localUser.getUsername();
+                if (!email.contains("@")) {
+                    email = localUser.getUsername() + "@roadworks.local";
+                }
+
+                try {
+                    // Vérifier si l'utilisateur existe déjà dans Firebase
+                    com.google.firebase.auth.UserRecord existingFirebaseUser = firebaseService.getFirebaseUserByEmail(email);
+                    
+                    if (existingFirebaseUser != null) {
+                        // Mettre à jour le statut dans Firebase si nécessaire
+                        boolean shouldBeDisabled = localUser.getIsLocked();
+                        if (existingFirebaseUser.isDisabled() != shouldBeDisabled) {
+                            firebaseService.createOrUpdateFirebaseUser(email, localUser.getUsername(), shouldBeDisabled);
+                            updatedInFirebase++;
+                            log.info("Utilisateur {} mis à jour dans Firebase (désactivé: {})", localUser.getUsername(), shouldBeDisabled);
+                        }
+                    } else {
+                        // Créer l'utilisateur dans Firebase
+                        firebaseService.createOrUpdateFirebaseUser(email, localUser.getUsername(), localUser.getIsLocked());
+                        exportedToFirebase++;
+                        log.info("Utilisateur {} exporté vers Firebase", localUser.getUsername());
+                    }
+                } catch (Exception e) {
+                    log.warn("Impossible d'exporter l'utilisateur {} vers Firebase: {}", localUser.getUsername(), e.getMessage());
+                }
+            }
+
+            StringBuilder message = new StringBuilder("Synchronisation réussie: ");
+            message.append(importedFromFirebase).append(" importés de Firebase, ");
+            message.append(updatedFromFirebase).append(" mis à jour depuis Firebase, ");
+            message.append(exportedToFirebase).append(" exportés vers Firebase, ");
+            message.append(updatedInFirebase).append(" mis à jour dans Firebase");
+
             return AuthResponse.builder()
-                    .message("Import réussi: " + importedCount + " importés, " + updatedCount + " mis à jour")
+                    .message(message.toString())
                     .build();
 
         } catch (Exception e) {
-            log.error("Erreur lors de l'import depuis Firebase: {}", e.getMessage());
+            log.error("Erreur lors de la synchronisation: {}", e.getMessage());
             return AuthResponse.builder()
-                    .message("Erreur lors de l'import: " + e.getMessage())
+                    .message("Erreur lors de la synchronisation: " + e.getMessage())
                     .build();
         }
     }
