@@ -4,6 +4,7 @@
 -- Supprimer les tables dans l'ordre des dépendances
 DROP TABLE IF EXISTS signalement_work CASCADE;
 DROP TABLE IF EXISTS signalement_status CASCADE;
+DROP TABLE IF EXISTS signalement_photo CASCADE;
 DROP TABLE IF EXISTS signalement CASCADE;
 DROP TABLE IF EXISTS session CASCADE;
 DROP TABLE IF EXISTS account_status CASCADE;
@@ -71,6 +72,21 @@ CREATE TABLE signalement (
     surface NUMERIC(12,2),
     firebase_id VARCHAR(255) UNIQUE
 );
+
+CREATE TABLE IF NOT EXISTS signalement_photo (
+    id BIGSERIAL PRIMARY KEY,
+    id_signalement BIGINT NOT NULL,
+    photo_data TEXT NOT NULL,
+    photo_order INTEGER,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_signalement_photo_signalement
+        FOREIGN KEY (id_signalement)
+        REFERENCES signalement(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_signalement_photo_signalement_id
+    ON signalement_photo(id_signalement);
 
 CREATE TABLE signalement_status (
     id BIGSERIAL PRIMARY KEY,
