@@ -22,7 +22,8 @@
       "Bash(where:*)",
       "Bash(npx @capacitor/assets:*)",
       "Bash(npx cap sync:*)",
-      "Bash(npx @capacitor/cli sync android:*)"
+      "Bash(npx @capacitor/cli sync android:*)",
+      "Bash(tree:*)"
     ]
   }
 }
